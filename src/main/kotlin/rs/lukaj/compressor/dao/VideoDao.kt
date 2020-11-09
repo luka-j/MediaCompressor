@@ -26,18 +26,25 @@ class VideoDao(@Autowired private val repository: VideoRepository) {
     }
 
     fun createVideo(name: String, size: Long, email: String) : UUID {
-        val video = Video(null, name, email, size, 0, VideoStatus.UPLOADING);
+        val video = Video(null, name, email, size, 0, 0, .0f, VideoStatus.UPLOADING)
         return repository.save(video).id!!
     }
 
-    fun setVideoUploaded(id: UUID) = setVideoStatus(id, VideoStatus.UPLOADED)
+    fun setVideoUploaded(id: UUID, size: Long) {
+        val video = findOrThrow(id)
+        video.originalSize = size
+        video.status = VideoStatus.UPLOADED
+        repository.save(video)
+    }
+
     fun setVideoProcessing(id: UUID) = setVideoStatus(id, VideoStatus.PROCESSING)
 
-    fun updateVideoProgress(id: UUID, newProgress: Int) {
+    fun updateVideoProgress(id: UUID, newProgress: Int, speed: Float) {
         if(progressCache[id] != null && progressCache[id] == newProgress) return
 
         repository.findById(id).map {
-            it.reencodeProgress = newProgress
+            it.transcodingProgress = newProgress
+            it.transcodingSpeed = speed
             repository.save(it)
             progressCache[id] = newProgress
             it
@@ -47,8 +54,11 @@ class VideoDao(@Autowired private val repository: VideoRepository) {
         }
     }
 
-    fun setVideoProcessed(id: UUID) {
-        setVideoStatus(id, VideoStatus.PROCESSED)
+    fun setVideoProcessed(id: UUID, compressedSize: Long) {
+        val video = findOrThrow(id)
+        video.compressedSize = compressedSize
+        video.status = VideoStatus.PROCESSED
+        repository.save(video)
         progressCache.remove(id)
     }
 

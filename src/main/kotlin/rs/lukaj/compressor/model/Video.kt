@@ -13,8 +13,10 @@ class Video(
 
         var name: String,
         var email: String,
-        var size: Long,
-        @Column(name = "reencode_progress") var reencodeProgress: Int,
+        var originalSize: Long,
+        var compressedSize: Long,
+        @Column(name = "transcoding_progress") var transcodingProgress: Int,
+        @Column(name = "transcoding_speed") var transcodingSpeed: Float,
         @Enumerated(EnumType.STRING) var status: VideoStatus
         )
     : AuditModel(null, null)

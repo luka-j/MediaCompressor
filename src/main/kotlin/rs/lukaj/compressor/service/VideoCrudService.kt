@@ -33,7 +33,7 @@ class VideoCrudService(
         val videoId = dao.createVideo(name, size, email)
         val destFile = File(properties.getVideoQueueLocation(), name)
         file.copyTo(destFile.outputStream(), 1048576)
-        dao.setVideoUploaded(videoId)
+        dao.setVideoUploaded(videoId, destFile.length())
         executor.execute {
             converter.reencode(destFile, videoId)
             if(dao.getQueueSizeForEmail(email) == 0) {

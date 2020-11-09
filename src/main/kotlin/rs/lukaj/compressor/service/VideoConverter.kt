@@ -49,11 +49,10 @@ class VideoConverter(
         val executor = FFmpegExecutor(ffmpeg, ffprobe)
 
         executor.createJob(builder) { progress ->
-            logger.info { "Video transcoding speed: ${progress.speed}" }
-            dao.updateVideoProgress(videoId, (progress.out_time_ns / durationNs).toInt())
+            dao.updateVideoProgress(videoId, (progress.out_time_ns / durationNs).toInt(), progress.speed)
         }.run()
 
-        dao.setVideoProcessed(videoId)
+        dao.setVideoProcessed(videoId, resultFile.length())
         if(!file.delete()) logger.warn { "Failed to delete file ${file.canonicalPath} (video $videoId)!" }
         return resultFile
     }
