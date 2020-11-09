@@ -32,6 +32,7 @@ class SendGridService(@Autowired private val properties : EnvironmentProperties)
             logger.info {"Sent email to ${to.email}! Sendgrid status ${response.statusCode}" }
         } catch (ex: IOException) {
             logger.error(ex) {"Error while sending email!"}
+            throw ex
         }
     }
 }

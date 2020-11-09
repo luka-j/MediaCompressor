@@ -10,13 +10,19 @@ import rs.lukaj.compressor.util.InternalServerError
 import java.util.*
 import kotlin.collections.HashMap
 
+private val IN_QUEUE_STATUSES = listOf(VideoStatus.UPLOADING, VideoStatus.UPLOADED, VideoStatus.PROCESSING)
 @Service
 class VideoDao(@Autowired private val repository: VideoRepository) {
     private val logger = KotlinLogging.logger {}
     private val progressCache = HashMap<UUID, Int>()
 
+
     fun getQueueSize() : Int {
-        return repository.countAllByStatusIn(listOf(VideoStatus.UPLOADING, VideoStatus.UPLOADED, VideoStatus.PROCESSING))
+        return repository.countAllByStatusIn(IN_QUEUE_STATUSES)
+    }
+
+    fun getQueueSizeForEmail(email: String) : Int {
+        return repository.countAllByStatusInAndEmailEquals(IN_QUEUE_STATUSES, email)
     }
 
     fun createVideo(name: String, size: Long, email: String) : UUID {
@@ -24,13 +30,8 @@ class VideoDao(@Autowired private val repository: VideoRepository) {
         return repository.save(video).id!!
     }
 
-    fun setVideoUploaded(id: UUID) {
-        setVideoStatus(id, VideoStatus.UPLOADED)
-    }
-
-    fun setVideoProcessing(id: UUID) {
-        setVideoStatus(id, VideoStatus.PROCESSING)
-    }
+    fun setVideoUploaded(id: UUID) = setVideoStatus(id, VideoStatus.UPLOADED)
+    fun setVideoProcessing(id: UUID) = setVideoStatus(id, VideoStatus.PROCESSING)
 
     fun updateVideoProgress(id: UUID, newProgress: Int) {
         if(progressCache[id] != null && progressCache[id] == newProgress) return
@@ -51,13 +52,14 @@ class VideoDao(@Autowired private val repository: VideoRepository) {
         progressCache.remove(id)
     }
 
-    fun setVideoReady(id: UUID) {
-        setVideoStatus(id, VideoStatus.READY)
-    }
+    fun setVideoMailPending(id: UUID) = setVideoStatus(id, VideoStatus.EMAIL_PENDING)
+    fun setVideoReady(id: UUID) = setVideoStatus(id, VideoStatus.READY)
+    fun setVideosReady(email: String) = repository.setVideosReadyForUser(email)
 
-    fun getVideo(id: UUID) : Optional<Video> {
-        return repository.findById(id)
-    }
+    fun getAllPendingVideosForUser(email: String) =
+            repository.findAllByStatusEqualsAndEmailEquals(VideoStatus.EMAIL_PENDING, email)
+
+    fun getVideo(id: UUID) : Optional<Video> = repository.findById(id)
 
 
     private fun setVideoStatus(id: UUID, status: VideoStatus) {

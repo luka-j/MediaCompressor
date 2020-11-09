@@ -54,6 +54,7 @@ class VideoConverter(
         }.run()
 
         dao.setVideoProcessed(videoId)
+        if(!file.delete()) logger.warn { "Failed to delete file ${file.canonicalPath} (video $videoId)!" }
         return resultFile
     }
 }

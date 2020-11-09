@@ -36,7 +36,13 @@ class VideoCrudService(
         dao.setVideoUploaded(videoId)
         executor.execute {
             converter.reencode(destFile, videoId)
-            sendMailNotification(videoId, name, email)
+            if(dao.getQueueSizeForEmail(email) == 0) {
+                sendMailNotification(email)
+            } else {
+                logger.info { "Finished processing video $videoId for $email. Deferring email notification because there " +
+                        "are more videos for this user in queue." }
+                dao.setVideoMailPending(videoId)
+            }
         }
     }
 
@@ -51,11 +57,23 @@ class VideoCrudService(
     }
 
 
-    private fun sendMailNotification(videoId: UUID, name: String, recipient: String) {
-        mailService.sendMail("Kompresovan snimak je spreman!", "Tvoj snimak $name je spreman. " +
-                "Možeš ga preuzeti <a href=\"${utils.buildDownloadLink(videoId)}\">ovde</a>", true, Email(recipient))
+    private fun sendMailNotification(recipient: String) {
+        val videos = dao.getAllPendingVideosForUser(recipient)
 
-        dao.setVideoReady(videoId)
+        //I could've used some proper templating here, but seemed like an overkill
+        if(videos.size == 1) {
+            mailService.sendMail("Kompresovan snimak je spreman!", "Tvoj snimak ${videos[0].name} je spreman. " +
+                    "Možeš ga preuzeti <a href=\"${utils.buildDownloadLink(videos[0].id!!)}\">ovde</a>", true, Email(recipient))
+        } else {
+            val msg = StringBuilder("Tvoji snimci su spremni. Možeš ih naći na sledećim linkovima:<br><ul>")
+            for(video in videos) {
+                msg.append("<li><a href=\"${utils.buildDownloadLink(video.id!!)}\">${video.name}</a></li>")
+            }
+            msg.append("</ul>")
+            mailService.sendMail("Kompresovani snimci su spremni!", msg.toString(), true, Email(recipient))
+        }
+
+        dao.setVideosReady(recipient)
     }
 
 }

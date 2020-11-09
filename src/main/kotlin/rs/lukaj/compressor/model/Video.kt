@@ -24,6 +24,7 @@ enum class VideoStatus {
     UPLOADED,
     PROCESSING,
     PROCESSED,
+    EMAIL_PENDING,
     READY,
     DOWNLOADED,
     DELETED,
