@@ -1,0 +1,53 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <title>Upload Video</title>
+
+    <style>
+        .progress-wrapper {
+            width:100%;
+        }
+        .progress-wrapper .progress {
+            background-color:green;
+            width:0%;
+            padding:5px 0px 5px 0px;
+        }
+    </style>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/jquery/3.5.1/jquery.js"></script>
+    <script>
+        function postFile() {
+            const fileInput = $('#fileInput')[0]
+            const progressBar = $('#progressBar')
+            let request = new XMLHttpRequest();
+
+            request.upload.addEventListener('progress', function (e) {
+                let file1Size = fileInput.files[0].size;
+                if (e.loaded <= file1Size) {
+                    let percent = Math.round(e.loaded / file1Size * 100);
+                    progressBar.width(percent + '%').html(percent + '%');
+                }
+
+                if(e.loaded === e.total){
+                    progressBar.width(100 + '%').html(100 + '%');
+                }
+            });
+
+            request.open('post', '/video/');
+            request.setRequestHeader("User-Email", $('#email')[0].value);
+            request.setRequestHeader("File-Name", fileInput.files[0].name);
+            request.send(fileInput.files[0]);
+        }
+    </script>
+</head>
+<body>
+<form>
+    <label for="email">E-mail</label><input id="email" type="text">
+    <input id="fileInput" type="file" />
+    <div class="progress-wrapper">
+        <div id="progressBar" class="progress"></div>
+    </div>
+    <button type="button" onclick="postFile()">Upload File</button>
+</form>
+</body>
+</html>
