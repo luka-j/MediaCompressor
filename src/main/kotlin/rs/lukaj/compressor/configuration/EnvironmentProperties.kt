@@ -20,6 +20,9 @@ class EnvironmentProperties {
 
     fun getSendgridApiKey() = getProperty("mc.sendgrid.apikey", "")
     fun getMailSendingAddress() = getProperty("mc.sendgrid.from", "compressor@luka-j.rocks")
+    fun getHostUrl() = getProperty("mc.host.url", "https://compressor.luka-j.rocks")
+
+    fun getExecutorType() = getProperty("mc.executor.strategy", "single")
 
     private fun getProperty(property: String, default: String) : String {
         val envVarName = property.replace('.', '_').toUpperCase()

@@ -11,7 +11,7 @@ import java.util.*
 import kotlin.collections.HashMap
 
 @Service
-class VideoDao(@Autowired val repository: VideoRepository) {
+class VideoDao(@Autowired private val repository: VideoRepository) {
     private val logger = KotlinLogging.logger {}
     private val progressCache = HashMap<UUID, Int>()
 
@@ -53,6 +53,10 @@ class VideoDao(@Autowired val repository: VideoRepository) {
 
     fun setVideoReady(id: UUID) {
         setVideoStatus(id, VideoStatus.READY)
+    }
+
+    fun getVideo(id: UUID) : Optional<Video> {
+        return repository.findById(id)
     }
 
 

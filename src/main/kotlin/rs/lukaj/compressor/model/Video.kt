@@ -15,7 +15,7 @@ class Video(
         var email: String,
         var size: Long,
         @Column(name = "reencode_progress") var reencodeProgress: Int,
-        var status: VideoStatus
+        @Enumerated(EnumType.STRING) var status: VideoStatus
         )
     : AuditModel(null, null)
 

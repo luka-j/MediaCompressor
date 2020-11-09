@@ -4,10 +4,10 @@ import mu.KotlinLogging
 import org.springframework.beans.factory.annotation.Autowired
 import org.springframework.http.ResponseEntity
 import org.springframework.stereotype.Controller
-import org.springframework.web.bind.annotation.PostMapping
-import org.springframework.web.bind.annotation.RequestHeader
-import org.springframework.web.bind.annotation.RequestMapping
+import org.springframework.web.bind.annotation.*
 import rs.lukaj.compressor.service.VideoCrudService
+import java.io.File
+import java.util.*
 import javax.servlet.http.HttpServletRequest
 
 @Controller("/video")
@@ -25,6 +25,9 @@ class VideoApiController(@Autowired val service: VideoCrudService) {
         return ResponseEntity.ok().build()
     }
 
-    //todo get endpoint
-    //todo property to select type of executor for transcoding jobs (single/cached/...)
+    @GetMapping("/{videoId}")
+    fun downloadVideo(@PathVariable("videoId") videoId: UUID) : ResponseEntity<File> {
+        logger.info { "Received request to download file $videoId" }
+        return ResponseEntity.ok(service.getVideo(videoId))
+    }
 }

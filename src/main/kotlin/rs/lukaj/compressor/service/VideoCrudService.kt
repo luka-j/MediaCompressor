@@ -4,15 +4,14 @@ import com.sendgrid.helpers.mail.objects.Email
 import mu.KotlinLogging
 import org.springframework.beans.factory.annotation.Autowired
 import org.springframework.stereotype.Service
+import org.springframework.transaction.annotation.Transactional
 import rs.lukaj.compressor.configuration.EnvironmentProperties
 import rs.lukaj.compressor.dao.VideoDao
-import rs.lukaj.compressor.util.NotEnoughSpaceException
-import rs.lukaj.compressor.util.QueueFullException
-import rs.lukaj.compressor.util.Utils
+import rs.lukaj.compressor.model.VideoStatus
+import rs.lukaj.compressor.util.*
 import java.io.File
 import java.io.InputStream
 import java.util.*
-import java.util.concurrent.Executors
 
 @Service
 class VideoCrudService(
@@ -24,8 +23,9 @@ class VideoCrudService(
 ) {
     private val logger = KotlinLogging.logger {}
 
-    private val executor = Executors.newCachedThreadPool()
+    private val executor = utils.getExecutor()
 
+    @Transactional
     fun addToQueue(file: InputStream, name: String, size: Long, email: String) {
         if(utils.getQueueFreeSpaceMb()-size/(1024*1024) <= properties.getFreeSpaceThresholdMb()) throw NotEnoughSpaceException()
         if(dao.getQueueSize() >= properties.getMaxQueueSize()) throw QueueFullException()
@@ -38,6 +38,16 @@ class VideoCrudService(
             converter.reencode(destFile, videoId)
             sendMailNotification(videoId, name, email)
         }
+    }
+
+    @Transactional(readOnly = true)
+    fun getVideo(id: UUID) : File {
+        @Suppress("ThrowableNotThrown") val video = dao.getVideo(id).orElseThrow { EntityNotFoundException("Video with id $id not found.") }
+        if(video.status != VideoStatus.READY && video.status != VideoStatus.DOWNLOADED) {
+            throw InvalidStatusException("Video not available: currently ${video.status}")
+        }
+
+        return File(properties.getVideoTargetLocation(), video.name)
     }
 
 
