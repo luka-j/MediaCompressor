@@ -24,7 +24,7 @@ class EnvironmentProperties {
 
     fun getExecutorType() = getProperty("mc.executor.strategy", "single")
 
-    fun getClaimedCleanupFreeSpaceThreshold() = getProperty("mc.cleanup.claimed.threshold", "4000").toInt()
+    fun getClaimedCleanupFreeSpaceThreshold() = getProperty("mc.cleanup.claimed.threshold", "2000").toInt()
     fun getUnclaimedCleanupFreeSpaceThreshold() = getProperty("mc.cleanup.unclaimed.threshold", "4000").toInt()
     fun getClaimedCleanupTimeThreshold() = getProperty("mc.cleanup.claimed.time", "15").toLong()
     fun getUnclaimedCleanupTimeThreshold() = getProperty("mc.cleanup.unclaimed.time", "90").toLong()
