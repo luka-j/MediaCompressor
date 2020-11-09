@@ -53,6 +53,7 @@ class VideoCrudService(
             throw InvalidStatusException("Video not available: currently ${video.status}")
         }
 
+        dao.setVideoDownloaded(id)
         return File(properties.getVideoTargetLocation(), video.name)
     }
 

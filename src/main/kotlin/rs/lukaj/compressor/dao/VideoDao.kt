@@ -3,16 +3,21 @@ package rs.lukaj.compressor.dao
 import mu.KotlinLogging
 import org.springframework.beans.factory.annotation.Autowired
 import org.springframework.stereotype.Service
+import rs.lukaj.compressor.configuration.EnvironmentProperties
 import rs.lukaj.compressor.model.Video
 import rs.lukaj.compressor.model.VideoRepository
 import rs.lukaj.compressor.model.VideoStatus
 import rs.lukaj.compressor.util.InternalServerError
+import java.time.LocalDateTime
 import java.util.*
 import kotlin.collections.HashMap
 
 private val IN_QUEUE_STATUSES = listOf(VideoStatus.UPLOADING, VideoStatus.UPLOADED, VideoStatus.PROCESSING)
 @Service
-class VideoDao(@Autowired private val repository: VideoRepository) {
+class VideoDao(
+        @Autowired private val repository: VideoRepository,
+        @Autowired private val properties: EnvironmentProperties
+) {
     private val logger = KotlinLogging.logger {}
     private val progressCache = HashMap<UUID, Int>()
 
@@ -71,6 +76,23 @@ class VideoDao(@Autowired private val repository: VideoRepository) {
 
     fun getVideo(id: UUID) : Optional<Video> = repository.findById(id)
 
+    fun setVideoDownloaded(id: UUID) = setVideoStatus(id, VideoStatus.DOWNLOADED)
+
+    fun getOldDownloadedVideos() : List<Video> =
+            repository.findAllByStatusEqualsAndUpdatedAtBefore(VideoStatus.DOWNLOADED,
+                    LocalDateTime.now().minusMinutes(properties.getClaimedCleanupTimeThreshold()))
+    fun getOldUndownloadedVideos() : List<Video> =
+            repository.findAllByStatusEqualsAndUpdatedAtBefore(VideoStatus.READY,
+                    LocalDateTime.now().minusMinutes(properties.getUnclaimedCleanupTimeThreshold()))
+
+    fun setVideoDeleted(video: Video) {
+        video.status = VideoStatus.DELETED
+        repository.save(video)
+    }
+    fun setVideoDeletedWithoutDownloading(video: Video) {
+        video.status = VideoStatus.DELETED_WITHOUT_DOWNLOADING
+        repository.save(video)
+    }
 
     private fun setVideoStatus(id: UUID, status: VideoStatus) {
         val video = findOrThrow(id)

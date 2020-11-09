@@ -13,6 +13,7 @@ class Utils(@Autowired private val properties : EnvironmentProperties) {
     private val logger = KotlinLogging.logger {}
 
     fun getQueueFreeSpaceMb() = properties.getVideoQueueLocation().usableSpace / (1024 * 1024)
+    fun getResultsFreeSpaceMb() = properties.getVideoTargetLocation().usableSpace / (1024 * 1024)
 
     fun buildDownloadLink(id: UUID) = "${properties.getHostUrl()}/video/$id"
 
