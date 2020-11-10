@@ -13,6 +13,8 @@ import java.util.*
 import kotlin.collections.HashMap
 
 private val IN_QUEUE_STATUSES = listOf(VideoStatus.UPLOADING, VideoStatus.UPLOADED, VideoStatus.PROCESSING)
+const val NODE_LOCAL = "localhost"
+
 @Service
 class VideoDao(
         @Autowired private val repository: VideoRepository,
@@ -30,8 +32,9 @@ class VideoDao(
         return repository.countAllByStatusInAndEmailEquals(IN_QUEUE_STATUSES, email)
     }
 
-    fun createVideo(name: String, size: Long, email: String) : UUID {
-        val video = Video(null, name, email, size, 0, 0, .0f, VideoStatus.UPLOADING)
+    fun createVideo(name: String, size: Long, email: String, origin: String) : UUID {
+        val video = Video(null, name, email, size, 0, 0, .0f,
+                VideoStatus.UPLOADING, NODE_LOCAL, origin)
         return repository.save(video).id!!
     }
 

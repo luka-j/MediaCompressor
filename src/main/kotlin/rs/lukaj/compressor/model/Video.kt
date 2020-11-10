@@ -9,15 +9,17 @@ import javax.persistence.*
 class Video(
         @Id @GeneratedValue(generator = "uuid4")
         @GenericGenerator(name = "uuid4", strategy = "org.hibernate.id.UUIDGenerator")
-        @Column(name = "id", columnDefinition = "uuid") var id: UUID?,
+        @Column(name = "id", columnDefinition = "uuid", nullable = false) var id: UUID?,
 
-        var name: String,
-        var email: String,
-        var originalSize: Long,
-        var compressedSize: Long,
-        @Column(name = "transcoding_progress") var transcodingProgress: Int,
-        @Column(name = "transcoding_speed") var transcodingSpeed: Float,
-        @Enumerated(EnumType.STRING) var status: VideoStatus
+        @Column(nullable=false) var name: String,
+        @Column(nullable=false) var email: String,
+        @Column(nullable=false) var originalSize: Long,
+        @Column(nullable=false) var compressedSize: Long,
+        @Column(name = "transcoding_progress", nullable=false) var transcodingProgress: Int,
+        @Column(name = "transcoding_speed", nullable = false) var transcodingSpeed: Float,
+        @Enumerated(EnumType.STRING) @Column(nullable=false) var status: VideoStatus,
+        @Column(nullable=false) var node: String,
+        @Column(nullable=false) var origin: String
         )
     : AuditModel(null, null)
 

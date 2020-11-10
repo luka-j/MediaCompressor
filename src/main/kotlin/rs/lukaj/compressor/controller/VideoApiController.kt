@@ -10,7 +10,7 @@ import java.io.File
 import java.util.*
 import javax.servlet.http.HttpServletRequest
 
-@Controller("/video")
+@Controller
 @RequestMapping("/video")
 class VideoApiController(@Autowired val service: VideoCrudService) {
 
