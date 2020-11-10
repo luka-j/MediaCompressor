@@ -22,7 +22,12 @@ class SendGridService(@Autowired private val properties : EnvironmentProperties)
         val content = Content(if(isHtml) "text/html" else "text/plain", body)
         val mail = Mail(from, subject, to, content)
 
-        val sg = SendGrid(properties.getSendgridApiKey())
+        val apiKey = properties.getSendgridApiKey()
+        if(apiKey == null) {
+            logger.info { "SendGrid apiKey property is null; not sending email" }
+            return
+        }
+        val sg = SendGrid(apiKey)
         val request = Request()
         try {
             request.method = Method.POST

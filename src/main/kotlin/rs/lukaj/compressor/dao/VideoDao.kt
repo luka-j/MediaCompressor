@@ -32,8 +32,8 @@ class VideoDao(
         return repository.countAllByStatusInAndEmailEquals(IN_QUEUE_STATUSES, email)
     }
 
-    fun createVideo(name: String, size: Long, email: String, origin: String) : UUID {
-        val video = Video(null, name, email, size, 0, 0, .0f,
+    fun createVideo(id: UUID?, name: String, size: Long, email: String, origin: String) : UUID {
+        val video = Video(id, name, email, size, 0, 0, .0f,
                 VideoStatus.UPLOADING, NODE_LOCAL, origin)
         return repository.save(video).id!!
     }
@@ -88,6 +88,7 @@ class VideoDao(
             repository.findAllByStatusEqualsAndUpdatedAtBefore(VideoStatus.READY,
                     LocalDateTime.now().minusMinutes(properties.getUnclaimedCleanupTimeThreshold()))
 
+    fun setVideoDeleted(id: UUID) = setVideoStatus(id, VideoStatus.DELETED)
     fun setVideoDeleted(video: Video) {
         video.status = VideoStatus.DELETED
         repository.save(video)

@@ -19,45 +19,89 @@ class VideoCrudService(
         @Autowired private val dao: VideoDao,
         @Autowired private val utils: Utils,
         @Autowired private val converter: VideoConverter,
-        @Autowired private val mailService : SendGridService
+        @Autowired private val mailService : SendGridService,
+        @Autowired private val workerService : WorkerService
 ) {
     private val logger = KotlinLogging.logger {}
 
     private val executor = utils.getExecutor()
 
     //@Transactional messes up stuff — record cannot be found in JPA repository from different thread
-    fun addToQueue(file: InputStream, name: String, size: Long, email: String, origin: String = NODE_LOCAL) {
-        if(utils.getQueueFreeSpaceMb()-size/(1024*1024) <= properties.getFreeSpaceThresholdMb()) throw NotEnoughSpaceException()
-        if(dao.getQueueSize() >= properties.getMaxQueueSize()) throw QueueFullException()
+    fun addToQueue(file: InputStream, name: String, size: Long, email: String) {
+        ensureQueueCanAcceptNewVideo(size)
 
-        val videoId = dao.createVideo(name, size, email, origin)
-        val destFile = File(properties.getVideoQueueLocation(), name)
-        file.copyTo(destFile.outputStream(), 1048576)
-        dao.setVideoUploaded(videoId, destFile.length())
+        val videoInfo = prepareVideoForQueue(name, size, email, NODE_LOCAL, file)
+        val destFile = videoInfo.second; val videoId = videoInfo.first
 
+        //todo logic to delegate to workers if available
         executor.execute {
             converter.reencode(destFile, videoId)
-            if(dao.getQueueSizeForEmail(email) == 0) {
-                sendMailNotification(email)
-            } else {
-                logger.info { "Finished processing video $videoId for $email. Deferring email notification because there " +
-                        "are more videos for this user in queue." }
-                dao.setVideoMailPending(videoId)
-            }
+            sendMailToUserIfNeeded(videoId, email)
         }
     }
 
+    fun addVideoFromMaster(file: InputStream, originId: UUID, name: String, size: Long, origin: String, returnUrl: String) {
+        ensureQueueCanAcceptNewVideo(size)
+
+        val videoInfo = prepareVideoForQueue(name, size, "", origin, file, originId)
+        val destFile = videoInfo.second; val videoId = videoInfo.first
+
+        executor.execute {
+            val result = converter.reencode(destFile, videoId)
+            workerService.sendResultToMaster(originId, result, returnUrl)
+            if(!result.delete()) logger.warn { "Failed to delete ${result.canonicalPath} after sending to master." }
+            dao.setVideoDeleted(videoId)
+        }
+    }
+
+    fun acceptProcessedVideo(file: InputStream, videoId: UUID) {
+        val video = dao.getVideo(videoId).orElseThrow {
+            logger.error { "Video $videoId not found, but we supposedly sent it to worker!" }
+            EntityNotFound("Video with id $videoId not found.")
+        }
+        val destFile = File(properties.getVideoTargetLocation(), video.name)
+        file.copyTo(destFile.outputStream(), 1048576)
+        dao.setVideoProcessed(videoId, destFile.length())
+        sendMailToUserIfNeeded(videoId, video.email)
+    }
 
     fun getVideo(id: UUID) : File {
-        @Suppress("ThrowableNotThrown") val video = dao.getVideo(id).orElseThrow { EntityNotFoundException("Video with id $id not found.") }
+        val video = dao.getVideo(id).orElseThrow { EntityNotFound("Video with id $id not found.") }
         if(video.status != VideoStatus.READY && video.status != VideoStatus.DOWNLOADED) {
-            throw InvalidStatusException("Video not available: currently ${video.status}")
+            throw InvalidStatus("Video not available: currently ${video.status}")
         }
 
         dao.setVideoDownloaded(id)
         return File(properties.getVideoTargetLocation(), video.name)
     }
 
+    fun getQueueSize() = dao.getQueueSize()
+
+
+
+    private fun sendMailToUserIfNeeded(videoId: UUID, email: String) {
+        if(dao.getQueueSizeForEmail(email) == 0) {
+            sendMailNotification(email)
+        } else {
+            logger.info { "Finished processing video $videoId for $email. Deferring email notification because there " +
+                    "are more videos for this user in queue." }
+            dao.setVideoMailPending(videoId)
+        }
+    }
+
+    private fun ensureQueueCanAcceptNewVideo(size: Long) {
+        if(utils.getQueueFreeSpaceMb()-size/(1024*1024) <= properties.getFreeSpaceThresholdMb()) throw NotEnoughSpace()
+        if(dao.getQueueSize() >= properties.getMaxQueueSize()) throw QueueFull()
+    }
+
+    private fun prepareVideoForQueue(name: String, size: Long, email: String, origin: String, file: InputStream,
+                                     originId: UUID? = null) : Pair<UUID, File> {
+        val videoId = dao.createVideo(originId, name, size, email, origin)
+        val destFile = File(properties.getVideoQueueLocation(), name)
+        file.copyTo(destFile.outputStream(), 1048576)
+        dao.setVideoUploaded(videoId, destFile.length())
+        return Pair(videoId, destFile)
+    }
 
     private fun sendMailNotification(recipient: String) {
         val videos = dao.getAllPendingVideosForUser(recipient)

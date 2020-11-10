@@ -1,6 +1,7 @@
 package rs.lukaj.compressor.configuration
 
 import org.springframework.stereotype.Component
+import rs.lukaj.compressor.util.nullIf
 import java.io.File
 
 @Component
@@ -18,7 +19,7 @@ class EnvironmentProperties {
     fun getAudioBitrate() = getProperty("mc.audio.bitrate", "24576").toLong()
     fun getAudioSamplerate() = getProperty("mc.audio.samplerate", "44100").toInt()
 
-    fun getSendgridApiKey() = getProperty("mc.sendgrid.apikey", "")
+    fun getSendgridApiKey() = getProperty("mc.sendgrid.apikey", "").nullIf("")
     fun getMailSendingAddress() = getProperty("mc.sendgrid.from", "compressor@luka-j.rocks")
     fun getHostUrl() = getProperty("mc.host.url", "https://compressor.luka-j.rocks")
 
@@ -29,6 +30,16 @@ class EnvironmentProperties {
     fun getClaimedCleanupTimeThreshold() = getProperty("mc.cleanup.claimed.time", "15").toLong()
     fun getUnclaimedCleanupTimeThreshold() = getProperty("mc.cleanup.unclaimed.time", "90").toLong()
 
+    fun isWorkerModeEnabled() = getProperty("mc.worker.enabled", "true").toBoolean()
+    fun getAllowedMasterHosts() = getProperty("mc.worker.masters", "*").split(",")
+    fun getAvailableWorkers() : List<String> {
+        val workers = getProperty("mc.workers.available", "")
+        return if(workers == "") listOf() else workers.split(",")
+        //apparently, split on empty string returns list of length 1
+    }
+    fun getMyMasterKey() = getProperty("mc.master.key", "").nullIf("")
+    fun getSubmitWorkToMasterTimeout() = getProperty("mc.worker.submit.timeout", "1800").toLong()
+
     private fun getProperty(property: String, default: String) : String {
         val envVarName = property.replace('.', '_').toUpperCase()
         val envVar : String? = System.getenv(envVarName)
@@ -36,4 +47,6 @@ class EnvironmentProperties {
 
         return System.getProperty(property, default)
     }
+
+    //todo runtime-modifiable config
 }
