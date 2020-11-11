@@ -40,7 +40,8 @@ class VideoConverter(
                 .setFormat(properties.getVideoFormat()) // Format is inferred from filename, or can be set
                 .setAudioCodec(properties.getAudioCodec()) // using the aac codec
                 .setAudioSampleRate(properties.getAudioSamplerate()) // at 44.1KHz
-                .setAudioBitRate(properties.getAudioBitrate()) // at 24 kbit/s
+                .setAudioBitRate(properties.getAudioBitrate()) // at 32 kbit/s
+                .setAudioChannels(properties.getAudioChannels()) // mono
                 .setVideoCodec(properties.getVideoCodec()) // Video using x265
                 .setVideoFrameRate(properties.getVideoFramerate()) // at 24 frames per second
                 .setStrict(FFmpegBuilder.Strict.EXPERIMENTAL) // Allow FFmpeg to use experimental specs

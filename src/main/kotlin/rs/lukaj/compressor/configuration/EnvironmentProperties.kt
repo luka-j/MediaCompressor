@@ -19,6 +19,7 @@ class EnvironmentProperties {
     fun getAudioCodec() = getProperty("mc.audio.codec", "aac")
     fun getAudioBitrate() = getProperty("mc.audio.bitrate", "32768").toLong()
     fun getAudioSamplerate() = getProperty("mc.audio.samplerate", "44100").toInt()
+    fun getAudioChannels() = getProperty("mc.audio.channels", "1").toInt()
 
     fun getSendgridApiKey() = getProperty("mc.sendgrid.apikey", "").nullIf("")
     fun getMailSendingAddress() = getProperty("mc.sendgrid.from", "compressor@luka-j.rocks")
