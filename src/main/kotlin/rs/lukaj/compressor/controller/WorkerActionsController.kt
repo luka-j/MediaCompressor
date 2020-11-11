@@ -12,7 +12,9 @@ import org.springframework.web.bind.annotation.RequestMapping
 import rs.lukaj.compressor.configuration.EnvironmentProperties
 import rs.lukaj.compressor.dto.QueueSizeResponse
 import rs.lukaj.compressor.service.VideoCrudService
+import rs.lukaj.compressor.util.EntityNotFound
 import rs.lukaj.compressor.util.MasterNotAuthorized
+import rs.lukaj.compressor.util.Utils
 import rs.lukaj.compressor.util.WorkerModeNotAllowed
 import java.util.*
 import javax.servlet.http.HttpServletRequest
@@ -26,7 +28,8 @@ const val RETURN_URL_HEADER = "Return-Url"
 @RequestMapping("/worker")
 class WorkerActionsController(
         @Autowired val service: VideoCrudService,
-        @Autowired val properties: EnvironmentProperties
+        @Autowired val properties: EnvironmentProperties,
+        @Autowired val utils: Utils
 ) {
     private val logger = KotlinLogging.logger {}
 
@@ -46,7 +49,8 @@ class WorkerActionsController(
     @GetMapping("/queue/size")
     fun getQueueSize(@RequestHeader(MASTER_KEY_HEADER) key: String, request: HttpServletRequest) : ResponseEntity<QueueSizeResponse> {
         ensureMasterAuthorized(key, request)
-        return ResponseEntity.ok(QueueSizeResponse(service.getQueueSize()))
+        return ResponseEntity.ok(QueueSizeResponse(service.getQueueSize(), properties.getMaxQueueSize(),
+                utils.getQueueFreeSpaceMb() <= properties.getFreeSpaceThresholdMb()))
     }
 
     @GetMapping("/ping")
@@ -68,10 +72,9 @@ class WorkerActionsController(
     }
 
     @PostMapping("/accept")
-    fun acceptResult(@RequestHeader(MASTER_KEY_HEADER) key: String,
-                     @RequestHeader(VIDEO_ID_HEADER) videoId: UUID,
+    fun acceptResult(@RequestHeader(VIDEO_ID_HEADER) videoId: UUID,
                      request: HttpServletRequest) : ResponseEntity<Any> {
-        ensureMasterAuthorized(key, request)
+        if(!service.videoExists(videoId)) throw EntityNotFound("Video $videoId doesn't exist!")
 
         service.acceptProcessedVideo(request.inputStream, videoId)
         return ResponseEntity.ok().build<Any>()

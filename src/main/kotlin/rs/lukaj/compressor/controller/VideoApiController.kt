@@ -11,6 +11,8 @@ import java.io.File
 import java.util.*
 import javax.servlet.http.HttpServletRequest
 
+const val FILE_SIZE_HEADER = "File-Size"
+
 @Controller
 @RequestMapping("/video")
 class VideoApiController(
@@ -37,10 +39,11 @@ class VideoApiController(
 
     //todo use this on frontend to alert user before uploading
     @GetMapping("/queue/status")
-    fun isQueueFull(@RequestHeader(MASTER_KEY_HEADER, defaultValue = "") key: String) : ResponseEntity<Any> {
+    fun isQueueFull(@RequestHeader(MASTER_KEY_HEADER, defaultValue = "") key: String,
+                    @RequestHeader(FILE_SIZE_HEADER, defaultValue = (400 * 1024 * 1024).toString()) size: Long) : ResponseEntity<Any> {
         if(key == properties.getMyMasterKey()) return ResponseEntity.ok().build()
 
-        service.checkQueueFull(key)
+        service.checkQueueFull(key, size)
         return ResponseEntity.ok().build()
     }
 }

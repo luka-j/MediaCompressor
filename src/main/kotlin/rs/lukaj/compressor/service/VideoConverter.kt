@@ -49,7 +49,7 @@ class VideoConverter(
         val executor = FFmpegExecutor(ffmpeg, ffprobe)
 
         executor.createJob(builder) { progress ->
-            dao.updateVideoProgress(videoId, (progress.out_time_ns / durationNs).toInt(), progress.speed)
+            dao.updateVideoProgress(videoId, ((progress.out_time_ns / durationNs) * 100).toInt(), progress.speed)
         }.run()
 
         dao.setVideoProcessed(videoId, resultFile.length())

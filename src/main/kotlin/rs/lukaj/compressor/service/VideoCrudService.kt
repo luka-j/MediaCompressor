@@ -26,16 +26,19 @@ class VideoCrudService(
 
     //@Transactional messes up stuff — record cannot be found in JPA repository from different thread
     fun addToQueue(file: InputStream, name: String, size: Long, email: String) {
-        ensureQueueCanAcceptNewVideo(size)
+        ensureEnoughFreeSpaceInQueue(size)
 
         val videoInfo = prepareVideoForQueue(name, size, email, NODE_LOCAL, file)
         val destFile = videoInfo.second; val videoId = videoInfo.first
 
-        queue.addToQueue(Job(videoId, destFile, JobOrigin.LOCAL) { sendMailToUserIfNeeded(videoId, email) })
+        queue.addToQueue(Job(videoId, destFile, JobOrigin.LOCAL) {
+            dao.setVideoProcessed(videoId, File(properties.getVideoTargetLocation(), destFile.name).length())
+            sendMailToUserIfNeeded(videoId, email)
+        })
     }
 
     fun addVideoFromMaster(file: InputStream, originId: UUID, name: String, size: Long, origin: String, returnUrl: String) {
-        ensureQueueCanAcceptNewVideo(size)
+        ensureEnoughFreeSpaceInQueue(size)
 
         val videoInfo = prepareVideoForQueue(name, size, "", origin, file, originId)
         val queueFile = videoInfo.second; val videoId = videoInfo.first
@@ -69,19 +72,26 @@ class VideoCrudService(
         return File(properties.getVideoTargetLocation(), video.name)
     }
 
+    fun videoExists(id: UUID) : Boolean = dao.getVideo(id).isPresent
+
     fun getQueueSize() = dao.getQueueSize()
 
-    fun checkQueueFull(requestOrigin: String) {
-        ensureQueueCanAcceptNewVideo(300 * 1024 * 1024)
+    fun checkQueueFull(requestOrigin: String, size: Long) {
+        ensureEnoughFreeSpaceInQueue(size)
+        if(queue.getQueueSize() < properties.getMaxQueueSize()) return
         val myMasterKey = properties.getMyMasterKey()
-        if(requestOrigin == "" && myMasterKey == null) return
+        if(requestOrigin == "" && myMasterKey == null) throw QueueFull()
 
         val originKey = if(requestOrigin == "") myMasterKey!! else requestOrigin
         for(worker in properties.getAvailableWorkers()) {
-            if(workerService.isQueueFull(worker, originKey)) throw QueueFull()
+            try {
+                if (!workerService.isQueueFull(worker, originKey)) return
+            } catch (e: Exception) {
+                //ignore, worker is unavailable / queue full / whatever; go to the next one
+            }
         }
+        throw QueueFull()
     }
-
 
     private fun sendMailToUserIfNeeded(videoId: UUID, email: String) {
         if(dao.getQueueSizeForEmail(email) == 0) {
@@ -93,9 +103,8 @@ class VideoCrudService(
         }
     }
 
-    private fun ensureQueueCanAcceptNewVideo(size: Long) {
-        if(utils.getQueueFreeSpaceMb()-size/(1024*1024) <= properties.getFreeSpaceThresholdMb()) throw NotEnoughSpace()
-        if(dao.getQueueSize() >= properties.getMaxQueueSize()) throw QueueFull()
+    private fun ensureEnoughFreeSpaceInQueue(size: Long) {
+        if(utils.getQueueFreeSpaceMb()-size/(1024*1024) <= properties.getQueueMinimumSpaceRemaining()) throw NotEnoughSpace()
     }
 
     private fun prepareVideoForQueue(name: String, size: Long, email: String, origin: String, file: InputStream,

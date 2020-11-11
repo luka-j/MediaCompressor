@@ -36,3 +36,4 @@ class Utils(@Autowired private val properties : EnvironmentProperties) {
 
 
 fun String.nullIf(other: String) : String? = if(this == other) null else this
+fun String.addTrailingSlash() = if(this.endsWith('/')) this else "$this/"

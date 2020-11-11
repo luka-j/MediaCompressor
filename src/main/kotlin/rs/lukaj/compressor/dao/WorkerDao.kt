@@ -17,4 +17,9 @@ class WorkerDao(
             repository.save(worker)
         }
     }
+
+    fun setWorkerQueueSize(worker: Worker, queueSize: Int) : Worker {
+        worker.queueSize = queueSize
+        return repository.save(worker)
+    }
 }
