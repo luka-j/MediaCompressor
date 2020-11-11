@@ -34,5 +34,6 @@ class WorkerDaemon(
             }
         }
     }
-    //todo separate class for WorkQueue
+
+    //todo scheduled task to detect Zombie workers (too long processing time)
 }

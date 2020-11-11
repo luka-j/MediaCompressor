@@ -18,13 +18,11 @@ class VideoCrudService(
         @Autowired private val properties: EnvironmentProperties,
         @Autowired private val dao: VideoDao,
         @Autowired private val utils: Utils,
-        @Autowired private val converter: VideoConverter,
         @Autowired private val mailService : SendGridGateway,
-        @Autowired private val workerService : WorkerGateway
+        @Autowired private val workerService : WorkerGateway,
+        @Autowired private val queue : WorkQueue
 ) {
     private val logger = KotlinLogging.logger {}
-
-    private val executor = utils.getExecutor()
 
     //@Transactional messes up stuff — record cannot be found in JPA repository from different thread
     fun addToQueue(file: InputStream, name: String, size: Long, email: String) {
@@ -33,25 +31,21 @@ class VideoCrudService(
         val videoInfo = prepareVideoForQueue(name, size, email, NODE_LOCAL, file)
         val destFile = videoInfo.second; val videoId = videoInfo.first
 
-        //todo submit to WorkQueue instead of doing it here
-        executor.execute {
-            converter.reencode(destFile, videoId)
-            sendMailToUserIfNeeded(videoId, email)
-        }
+        queue.addToQueue(Job(videoId, destFile, JobOrigin.LOCAL) { sendMailToUserIfNeeded(videoId, email) })
     }
 
     fun addVideoFromMaster(file: InputStream, originId: UUID, name: String, size: Long, origin: String, returnUrl: String) {
         ensureQueueCanAcceptNewVideo(size)
 
         val videoInfo = prepareVideoForQueue(name, size, "", origin, file, originId)
-        val destFile = videoInfo.second; val videoId = videoInfo.first
+        val queueFile = videoInfo.second; val videoId = videoInfo.first
+        val resultFile = File(properties.getVideoTargetLocation(), name)
 
-        executor.execute {
-            val result = converter.reencode(destFile, videoId)
-            workerService.sendResultToMaster(originId, result, returnUrl)
-            if(!result.delete()) logger.warn { "Failed to delete ${result.canonicalPath} after sending to master." }
+        queue.addToQueue(Job(videoId, queueFile, JobOrigin.REMOTE) {
+            workerService.sendResultToMaster(originId, resultFile, returnUrl)
+            if(!resultFile.delete()) logger.warn { "Failed to delete ${resultFile.canonicalPath} after sending to master." }
             dao.setVideoDeleted(videoId)
-        }
+        })
     }
 
     fun acceptProcessedVideo(file: InputStream, videoId: UUID) {

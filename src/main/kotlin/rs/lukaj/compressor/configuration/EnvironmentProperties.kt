@@ -24,6 +24,8 @@ class EnvironmentProperties {
     fun getHostUrl() = getProperty("mc.host.url", "https://compressor.luka-j.rocks")
 
     fun getExecutorType() = getProperty("mc.executor.strategy", "single")
+    fun getSecondaryExecutorType() = getProperty("mc.executor2.strategy", "cached")
+    fun getMaxConcurrentJobs() = getProperty("mc.workqueue.concurrent", "1").toInt()
 
     fun getClaimedCleanupFreeSpaceThreshold() = getProperty("mc.cleanup.claimed.threshold", "2000").toInt()
     fun getUnclaimedCleanupFreeSpaceThreshold() = getProperty("mc.cleanup.unclaimed.threshold", "4000").toInt()

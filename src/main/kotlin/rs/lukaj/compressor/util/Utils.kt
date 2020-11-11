@@ -17,7 +17,7 @@ class Utils(@Autowired private val properties : EnvironmentProperties) {
 
     fun buildDownloadLink(id: UUID) = "${properties.getHostUrl()}/video/$id"
 
-    fun getExecutor() : ExecutorService =
+    fun getExecutor(type: String) : ExecutorService =
             when(val executorType = properties.getExecutorType()) {
                 "single" -> Executors.newSingleThreadExecutor()
                 "cached" -> Executors.newCachedThreadPool()
