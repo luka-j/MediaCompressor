@@ -14,7 +14,7 @@ import rs.lukaj.compressor.configuration.EnvironmentProperties
 import java.io.IOException
 
 @Service
-class SendGridService(@Autowired private val properties : EnvironmentProperties) {
+class SendGridGateway(@Autowired private val properties : EnvironmentProperties) {
     private val logger = KotlinLogging.logger {}
 
     fun sendMail(subject: String, body: String, isHtml : Boolean, to: Email,

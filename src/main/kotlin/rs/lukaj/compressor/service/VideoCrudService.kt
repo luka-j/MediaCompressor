@@ -19,8 +19,8 @@ class VideoCrudService(
         @Autowired private val dao: VideoDao,
         @Autowired private val utils: Utils,
         @Autowired private val converter: VideoConverter,
-        @Autowired private val mailService : SendGridService,
-        @Autowired private val workerService : WorkerService
+        @Autowired private val mailService : SendGridGateway,
+        @Autowired private val workerService : WorkerGateway
 ) {
     private val logger = KotlinLogging.logger {}
 

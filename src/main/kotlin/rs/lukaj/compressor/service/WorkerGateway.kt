@@ -17,7 +17,7 @@ import java.util.*
 
 
 @Service
-class WorkerService(
+class WorkerGateway(
     @Autowired private val properties: EnvironmentProperties
 ) {
     private val logger = KotlinLogging.logger {}

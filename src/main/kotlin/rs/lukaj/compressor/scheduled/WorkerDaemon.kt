@@ -6,13 +6,13 @@ import org.springframework.stereotype.Service
 import rs.lukaj.compressor.configuration.EnvironmentProperties
 import rs.lukaj.compressor.dao.WorkerDao
 import rs.lukaj.compressor.model.WorkerStatus
-import rs.lukaj.compressor.service.WorkerService
+import rs.lukaj.compressor.service.WorkerGateway
 
 @Service
 class WorkerDaemon(
         @Autowired private val properties: EnvironmentProperties,
         @Autowired private val dao : WorkerDao,
-        @Autowired private val workerService: WorkerService
+        @Autowired private val workerService: WorkerGateway
 ) {
     @Scheduled(fixedDelay = 60_000)
     fun pingWorkers() {
