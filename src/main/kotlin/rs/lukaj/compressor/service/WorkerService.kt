@@ -21,10 +21,9 @@ class WorkerService(
     @Autowired private val properties: EnvironmentProperties
 ) {
     private val logger = KotlinLogging.logger {}
+    private val client = WebClient.create()
 
     fun sendResultToMaster(originId: UUID, video: File, returnUrl: String) {
-
-        val client = WebClient.create()
         val response = client.post()
                 .uri(returnUrl)
                 .header(VIDEO_ID_HEADER, originId.toString())
@@ -40,8 +39,29 @@ class WorkerService(
 
         if(response.statusCode() != HttpStatus.OK) {
             logger.error { "Error occurred while submitting work to master! Got code ${response.statusCode()} and body: " +
-                    "${response.bodyToMono(String::class.java).block(Duration.ofSeconds(2))}" }
+                    "${response.bodyToMono(String::class.java).block(Duration.ofSeconds(4))}" }
             throw HttpServerErrorException(response.statusCode(), "Error while submitting work to master!")
         }
+    }
+
+    fun ping(host: String) : Boolean {
+        val response = client.get()
+                .uri(host + if(!host.endsWith('/')) "/" else "" + "worker/ping")
+                .header(MASTER_KEY_HEADER, properties.getMyMasterKey())
+                .exchange()
+                .block(Duration.ofSeconds(properties.getWorkerPingTimeout()))
+                ?: return false
+        if(response.statusCode() != HttpStatus.OK) return false
+        return true
+    }
+
+    fun isQueueFull(host: String, originKey: String) : Boolean {
+        val response = client.get()
+                .uri(host + if(!host.endsWith('/')) "/" else "" + "video/queue/status")
+                .header(MASTER_KEY_HEADER, originKey)
+                .exchange()
+                .block(Duration.ofSeconds(properties.getWorkerPingTimeout()))
+                ?: return true
+        return response.statusCode() != HttpStatus.OK
     }
 }

@@ -39,6 +39,7 @@ class EnvironmentProperties {
     }
     fun getMyMasterKey() = getProperty("mc.master.key", "").nullIf("")
     fun getSubmitWorkToMasterTimeout() = getProperty("mc.worker.submit.timeout", "1800").toLong()
+    fun getWorkerPingTimeout() = getProperty("mc.worker.ping.timeout", "5").toLong()
 
     private fun getProperty(property: String, default: String) : String {
         val envVarName = property.replace('.', '_').toUpperCase()

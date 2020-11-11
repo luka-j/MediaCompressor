@@ -33,7 +33,7 @@ class VideoCrudService(
         val videoInfo = prepareVideoForQueue(name, size, email, NODE_LOCAL, file)
         val destFile = videoInfo.second; val videoId = videoInfo.first
 
-        //todo logic to delegate to workers if available
+        //todo submit to WorkQueue instead of doing it here
         executor.execute {
             converter.reencode(destFile, videoId)
             sendMailToUserIfNeeded(videoId, email)
@@ -77,6 +77,16 @@ class VideoCrudService(
 
     fun getQueueSize() = dao.getQueueSize()
 
+    fun checkQueueFull(requestOrigin: String) {
+        ensureQueueCanAcceptNewVideo(300 * 1024 * 1024)
+        val myMasterKey = properties.getMyMasterKey()
+        if(requestOrigin == "" && myMasterKey == null) return
+
+        val originKey = if(requestOrigin == "") myMasterKey!! else requestOrigin
+        for(worker in properties.getAvailableWorkers()) {
+            if(workerService.isQueueFull(worker, originKey)) throw QueueFull()
+        }
+    }
 
 
     private fun sendMailToUserIfNeeded(videoId: UUID, email: String) {

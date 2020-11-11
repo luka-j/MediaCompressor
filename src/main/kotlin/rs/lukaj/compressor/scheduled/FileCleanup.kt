@@ -1,4 +1,4 @@
-package rs.lukaj.compressor.service
+package rs.lukaj.compressor.scheduled
 
 import mu.KotlinLogging
 import org.springframework.beans.factory.annotation.Autowired

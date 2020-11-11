@@ -11,8 +11,8 @@ class Video(
         @GenericGenerator(name = "uuid4", strategy = "org.hibernate.id.UUIDGenerator")
         @Column(name = "id", columnDefinition = "uuid", nullable = false) var id: UUID?,
 
-        @Column(nullable=false) var name: String,
-        @Column(nullable=false) var email: String,
+        @Column(nullable=false, columnDefinition = "text") var name: String,
+        @Column(nullable=false, columnDefinition = "text") var email: String,
         @Column(nullable=false) var originalSize: Long,
         @Column(nullable=false) var compressedSize: Long,
         @Column(name = "transcoding_progress", nullable=false) var transcodingProgress: Int,

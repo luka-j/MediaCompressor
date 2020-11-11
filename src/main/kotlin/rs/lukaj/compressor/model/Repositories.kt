@@ -19,3 +19,8 @@ interface VideoRepository : JpaRepository<Video, UUID> {
     @Query("update Video v set v.status='READY' where v.email=:email")
     fun setVideosReadyForUser(email: String)
 }
+
+@Repository
+interface WorkerRepository : JpaRepository<Worker, UUID> {
+    fun findByHostEquals(host: String) : Optional<Worker>
+}

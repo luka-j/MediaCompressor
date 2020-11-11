@@ -51,7 +51,6 @@ class WorkerActionsController(
 
     @GetMapping("/ping")
     fun ping(@RequestHeader(MASTER_KEY_HEADER) key: String, request: HttpServletRequest) :ResponseEntity<String> {
-        //todo use this to check if worker is alive, and if not reassign videos
         ensureMasterAuthorized(key, request)
         return ResponseEntity.ok("pong")
     }
