@@ -98,6 +98,8 @@ class VideoDao(
         repository.save(video)
     }
 
+    fun setVideoError(id: UUID) = setVideoStatus(id, VideoStatus.ERROR)
+
     private fun setVideoStatus(id: UUID, status: VideoStatus) {
         val video = findOrThrow(id)
         video.status = status

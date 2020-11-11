@@ -62,9 +62,9 @@ class WorkQueue(
         var minQueueLocation = "localhost"
         //this is not exactly thread-safe (esp in distributed environment), but oh well
         for(worker in properties.getAvailableWorkers()) {
-            val workerEntity = workerDao.getOrCreateWorker(worker)
-            if(workerEntity.status == WorkerStatus.DOWN) continue
             try {
+                val workerEntity = workerDao.getOrCreateWorker(worker)
+                if(workerEntity.status == WorkerStatus.DOWN) continue
                 val status = workerService.getQueueStatus(worker)
                 workerDao.setWorkerQueueSize(workerEntity, status.size)
                 if(status.isDiskFull) continue
@@ -91,8 +91,13 @@ class WorkQueue(
     private fun executeLocally(job: Job) {
         ensureQueueCanAcceptNewVideo(job.queueFile.length())
         mainExecutor.execute {
-            converter.reencode(job.queueFile, job.videoId)
-            shortTasksExecutor.execute(job.finalizedBy)
+            try {
+                converter.reencode(job.queueFile, job.videoId)
+                shortTasksExecutor.execute(job.finalizedBy)
+            } catch (e: Exception) {
+                logger.error(e) { "Unexpected exception occurred while executing reencode job; failing video ${job.videoId}" }
+                dao.setVideoError(job.videoId)
+            }
             nextJob()
             jobsExecuting--
         }

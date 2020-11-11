@@ -32,8 +32,12 @@ class VideoCrudService(
         val destFile = videoInfo.second; val videoId = videoInfo.first
 
         queue.addToQueue(Job(videoId, destFile, JobOrigin.LOCAL) {
-            dao.setVideoProcessed(videoId, File(properties.getVideoTargetLocation(), destFile.name).length())
-            sendMailToUserIfNeeded(videoId, email)
+            try {
+                dao.setVideoProcessed(videoId, File(properties.getVideoTargetLocation(), destFile.name).length())
+                sendMailToUserIfNeeded(videoId, email)
+            } catch (e: Exception) {
+                logger.error(e) { "Unexpected exception occurred while finalizing job $videoId; doing nothing" }
+            }
         })
     }
 
@@ -45,9 +49,14 @@ class VideoCrudService(
         val resultFile = File(properties.getVideoTargetLocation(), name)
 
         queue.addToQueue(Job(videoId, queueFile, JobOrigin.REMOTE) {
-            workerService.sendResultToMaster(originId, resultFile, returnUrl)
-            if(!resultFile.delete()) logger.warn { "Failed to delete ${resultFile.canonicalPath} after sending to master." }
-            dao.setVideoDeleted(videoId)
+            try {
+                workerService.sendResultToMaster(originId, resultFile, returnUrl)
+                if (!resultFile.delete()) logger.warn { "Failed to delete ${resultFile.canonicalPath} after sending to master." }
+                dao.setVideoDeleted(videoId)
+            } catch (e: Exception) {
+                logger.error(e) { "Unexpected exception occurred while sending result to master; failing video $videoId" }
+                dao.setVideoError(videoId)
+            }
         })
     }
 
