@@ -5,8 +5,10 @@ import mu.KotlinLogging
 import org.springframework.beans.factory.annotation.Autowired
 import org.springframework.stereotype.Service
 import rs.lukaj.compressor.configuration.EnvironmentProperties
+import rs.lukaj.compressor.dao.IN_QUEUE_STATUSES
 import rs.lukaj.compressor.dao.NODE_LOCAL
 import rs.lukaj.compressor.dao.VideoDao
+import rs.lukaj.compressor.model.Video
 import rs.lukaj.compressor.model.VideoStatus
 import rs.lukaj.compressor.util.*
 import java.io.File
@@ -28,25 +30,18 @@ class VideoCrudService(
     fun addToQueue(file: InputStream, name: String, size: Long, email: String) {
         ensureEnoughFreeSpaceInQueue(size)
 
-        val videoInfo = prepareVideoForQueue(name, size, email, NODE_LOCAL, file)
-        val destFile = videoInfo.second; val videoId = videoInfo.first
+        val video = prepareVideoForQueue(name, size, email, NODE_LOCAL, file)
 
-        queue.addToQueue(Job(videoId, destFile, JobOrigin.LOCAL) {
-            try {
-                dao.setVideoProcessed(videoId, File(properties.getVideoTargetLocation(), destFile.name).length())
-                sendMailToUserIfNeeded(videoId, email)
-            } catch (e: Exception) {
-                logger.error(e) { "Unexpected exception occurred while finalizing job $videoId; doing nothing" }
-            }
-        })
+        queue.addToQueue(buildLocallyOriginatedJob(video))
     }
 
     fun addVideoFromMaster(file: InputStream, originId: UUID, name: String, size: Long, origin: String, returnUrl: String) {
         ensureEnoughFreeSpaceInQueue(size)
 
-        val videoInfo = prepareVideoForQueue(name, size, "", origin, file, originId)
-        val queueFile = videoInfo.second; val videoId = videoInfo.first
+        val video = prepareVideoForQueue(name, size, "", origin, file, originId)
+        val queueFile = File(properties.getVideoQueueLocation(), name)
         val resultFile = File(properties.getVideoTargetLocation(), name)
+        val videoId = video.id!!
 
         queue.addToQueue(Job(videoId, queueFile, JobOrigin.REMOTE) {
             try {
@@ -69,6 +64,20 @@ class VideoCrudService(
         file.copyTo(destFile.outputStream(), 1048576)
         dao.setVideoProcessed(videoId, destFile.length())
         sendMailToUserIfNeeded(videoId, video.email)
+
+        try {
+            queue.nextJob()
+        } catch (e: Exception) {
+            logger.info { "Attempted to move queue after accepting a job result from worker, but failed: ${e.javaClass.simpleName}" }
+        }
+    }
+
+    fun reassignVideo(video: Video) {
+        queue.addToQueue(buildLocallyOriginatedJob(video), true)
+    }
+
+    fun reassignWorkFromDeadNode(node: String) {
+        dao.getVideosProcessingOnNode(node).forEach { video -> reassignVideo(video) }
     }
 
     fun getVideo(id: UUID) : File {
@@ -82,6 +91,8 @@ class VideoCrudService(
     }
 
     fun videoExists(id: UUID) : Boolean = dao.getVideo(id).isPresent
+
+    fun videoExistsInQueue(id: UUID) = dao.getVideo(id).map { v -> IN_QUEUE_STATUSES.contains(v.status) }.orElse(false)
 
     fun getQueueSize() = dao.getQueueSize()
 
@@ -102,6 +113,18 @@ class VideoCrudService(
         throw QueueFull()
     }
 
+    private fun buildLocallyOriginatedJob(video: Video) : Job {
+        val videoId = video.id!!
+        return Job(videoId, File(properties.getVideoQueueLocation(), video.name), JobOrigin.LOCAL) {
+            try {
+                dao.setVideoProcessed(videoId, File(properties.getVideoTargetLocation(), video.name).length())
+                sendMailToUserIfNeeded(videoId, video.email)
+            } catch (e: Exception) {
+                logger.error(e) { "Unexpected exception occurred while finalizing job $videoId; doing nothing" }
+            }
+        }
+    }
+
     private fun sendMailToUserIfNeeded(videoId: UUID, email: String) {
         if(dao.getQueueSizeForEmail(email) == 0) {
             sendMailNotification(email)
@@ -117,12 +140,12 @@ class VideoCrudService(
     }
 
     private fun prepareVideoForQueue(name: String, size: Long, email: String, origin: String, file: InputStream,
-                                     originId: UUID? = null) : Pair<UUID, File> {
-        val videoId = dao.createVideo(originId, name, size, email, origin)
+                                     originId: UUID? = null) : Video {
+        val video = dao.createVideo(originId, name, size, email, origin)
         val destFile = File(properties.getVideoQueueLocation(), name)
         file.copyTo(destFile.outputStream(), 1048576)
-        dao.setVideoUploaded(videoId, destFile.length())
-        return Pair(videoId, destFile)
+        dao.setVideoUploaded(video.id!!, destFile.length())
+        return video
     }
 
     private fun sendMailNotification(recipient: String) {

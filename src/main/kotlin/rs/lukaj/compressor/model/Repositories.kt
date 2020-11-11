@@ -14,6 +14,9 @@ interface VideoRepository : JpaRepository<Video, UUID> {
     fun findAllByStatusEqualsAndEmailEquals(status: VideoStatus, email: String) : List<Video>
 
     fun findAllByStatusEqualsAndUpdatedAtBefore(status: VideoStatus, lastUpdate: LocalDateTime) : List<Video>
+    fun findAllByStatusInAndUpdatedAtBefore(statuses: Collection<VideoStatus>, lastUpdate: LocalDateTime) : List<Video>
+    fun findAllByStatusEqualsAndNodeEquals(status: VideoStatus, node: String) : List<Video>
+    fun findAllByStatusEqualsAndNodeNot(status: VideoStatus, node: String) : List<Video>
 
     @Modifying
     @Query("update Video v set v.status='READY' where v.email=:email")

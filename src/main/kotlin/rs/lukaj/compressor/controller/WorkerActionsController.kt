@@ -5,10 +5,7 @@ import org.springframework.beans.factory.annotation.Autowired
 import org.springframework.http.HttpStatus
 import org.springframework.http.ResponseEntity
 import org.springframework.stereotype.Controller
-import org.springframework.web.bind.annotation.GetMapping
-import org.springframework.web.bind.annotation.PostMapping
-import org.springframework.web.bind.annotation.RequestHeader
-import org.springframework.web.bind.annotation.RequestMapping
+import org.springframework.web.bind.annotation.*
 import rs.lukaj.compressor.configuration.EnvironmentProperties
 import rs.lukaj.compressor.dto.QueueSizeResponse
 import rs.lukaj.compressor.service.VideoCrudService
@@ -68,7 +65,7 @@ class WorkerActionsController(
         ensureMasterAuthorized(key, request)
 
         service.addVideoFromMaster(request.inputStream, videoId, filename, request.contentLengthLong, key, returnUrl)
-        return ResponseEntity.status(HttpStatus.ACCEPTED).build<Any>()
+        return ResponseEntity.status(HttpStatus.ACCEPTED).build()
     }
 
     @PostMapping("/accept")
@@ -77,6 +74,21 @@ class WorkerActionsController(
         if(!service.videoExists(videoId)) throw EntityNotFound("Video $videoId doesn't exist!")
 
         service.acceptProcessedVideo(request.inputStream, videoId)
-        return ResponseEntity.ok().build<Any>()
+        return ResponseEntity.ok().build()
+    }
+
+    //todo check if worker's videoId is same as origin's videoId — if worker generates its own videoIds, this is not going to work
+    // (maybe store originId in a separate column)?
+    @GetMapping("/queue/exists")
+    fun isVideoInQueue(@RequestHeader(MASTER_KEY_HEADER) key: String,
+                       @RequestParam("videoId") videoId: UUID,
+                       request: HttpServletRequest) : ResponseEntity<Any> {
+        ensureMasterAuthorized(key, request)
+
+        return if(service.videoExistsInQueue(videoId)) {
+            ResponseEntity.ok().build()
+        } else {
+            ResponseEntity.notFound().build()
+        }
     }
 }

@@ -12,7 +12,9 @@ import java.time.LocalDateTime
 import java.util.*
 import kotlin.collections.HashMap
 
-private val IN_QUEUE_STATUSES = listOf(VideoStatus.UPLOADING, VideoStatus.UPLOADED, VideoStatus.PROCESSING)
+val IN_QUEUE_STATUSES = listOf(VideoStatus.UPLOADING, VideoStatus.UPLOADED, VideoStatus.IN_QUEUE, VideoStatus.PROCESSING)
+//states which should quickly be changed; not something that should last long
+private val TRANSITIVE_STATUSES = listOf(VideoStatus.UPLOADED, VideoStatus.PROCESSED)
 const val NODE_LOCAL = "localhost"
 
 @Service
@@ -32,10 +34,10 @@ class VideoDao(
         return repository.countAllByStatusInAndEmailEquals(IN_QUEUE_STATUSES, email)
     }
 
-    fun createVideo(id: UUID?, name: String, size: Long, email: String, origin: String) : UUID {
+    fun createVideo(id: UUID?, name: String, size: Long, email: String, origin: String) : Video {
         val video = Video(id, name, email, size, 0, 0, .0f,
                 VideoStatus.UPLOADING, NODE_LOCAL, origin)
-        return repository.save(video).id!!
+        return repository.save(video)
     }
 
     fun setVideoUploaded(id: UUID, size: Long) {
@@ -45,7 +47,14 @@ class VideoDao(
         repository.save(video)
     }
 
-    fun setVideoProcessing(id: UUID) = setVideoStatus(id, VideoStatus.PROCESSING)
+    fun setVideoInQueue(id: UUID) = setVideoStatus(id, VideoStatus.IN_QUEUE)
+
+    fun setVideoProcessing(id: UUID, node: String) {
+        val video = findOrThrow(id)
+        video.status = VideoStatus.PROCESSING
+        video.node = NODE_LOCAL
+        repository.save(video)
+    }
 
     fun updateVideoProgress(id: UUID, newProgress: Int, speed: Float) {
         if(progressCache[id] != null && progressCache[id] == newProgress) return
@@ -87,6 +96,12 @@ class VideoDao(
     fun getOldUndownloadedVideos() : List<Video> =
             repository.findAllByStatusEqualsAndUpdatedAtBefore(VideoStatus.READY,
                     LocalDateTime.now().minusMinutes(properties.getUnclaimedCleanupTimeThreshold()))
+    fun getOldErrorZombieVideos() : List<Video> =
+            repository.findAllByStatusEqualsAndUpdatedAtBefore(VideoStatus.ERROR,
+                    LocalDateTime.now().minusMinutes(properties.getZombieErrorCleanupTimeThreshold()))
+    fun getOldTransitiveStatusZombieVideos() : List<Video> =
+            repository.findAllByStatusInAndUpdatedAtBefore(TRANSITIVE_STATUSES,
+                    LocalDateTime.now().minusMinutes(properties.getTransitiveStatusesCleanupTimeThreshold()))
 
     fun setVideoDeleted(id: UUID) = setVideoStatus(id, VideoStatus.DELETED)
     fun setVideoDeleted(video: Video) {
@@ -98,7 +113,11 @@ class VideoDao(
         repository.save(video)
     }
 
-    fun setVideoError(id: UUID) = setVideoStatus(id, VideoStatus.ERROR)
+    fun setVideoError(id: UUID) = setVideoStatus(id, VideoStatus.ERROR) //todo email user?
+
+    fun getVideosProcessingOnNode(node: String) = repository.findAllByStatusEqualsAndNodeEquals(VideoStatus.PROCESSING, node)
+
+    fun getVideosProcessingOnWorkers() = repository.findAllByStatusEqualsAndNodeNot(VideoStatus.PROCESSING, NODE_LOCAL)
 
     private fun setVideoStatus(id: UUID, status: VideoStatus) {
         val video = findOrThrow(id)

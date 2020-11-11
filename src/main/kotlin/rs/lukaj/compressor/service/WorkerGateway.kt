@@ -109,4 +109,17 @@ class WorkerGateway(
                     HttpServerErrorException(HttpStatus.INTERNAL_SERVER_ERROR)
                 }
     }
+
+    fun isVideoInQueue(host: String, videoId: UUID) : Boolean {
+        return client.get()
+                .uri {builder -> builder.host(host).path("/worker/queue/exists").queryParam("videoId", videoId).build() }
+                .header(MASTER_KEY_HEADER, properties.getMyMasterKey())
+                .exchange()
+                .blockOptional(Duration.ofSeconds(properties.getQueueIntegrityCheckTimeout()))
+                .orElseThrow {
+                    logger.error { "Error occurred while checking queue integrity of worker $host" }
+                    HttpServerErrorException(HttpStatus.INTERNAL_SERVER_ERROR)
+                }
+                .statusCode() == HttpStatus.OK
+    }
 }

@@ -23,7 +23,6 @@ class VideoConverter(
 
     fun reencode(file: File, videoId: UUID) : File {
         logger.info { "Starting reencode of video $videoId" }
-        dao.setVideoProcessing(videoId)
 
         val resultFile = File(properties.getVideoTargetLocation(), file.name)
 

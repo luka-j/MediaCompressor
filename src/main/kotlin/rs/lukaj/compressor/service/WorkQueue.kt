@@ -4,6 +4,7 @@ import mu.KotlinLogging
 import org.springframework.beans.factory.annotation.Autowired
 import org.springframework.stereotype.Service
 import rs.lukaj.compressor.configuration.EnvironmentProperties
+import rs.lukaj.compressor.dao.NODE_LOCAL
 import rs.lukaj.compressor.dao.VideoDao
 import rs.lukaj.compressor.dao.WorkerDao
 import rs.lukaj.compressor.model.WorkerStatus
@@ -33,34 +34,48 @@ class WorkQueue(
 
     @Volatile private var jobsExecuting = 0
 
-    fun addToQueue(job: Job) {
-        queue.push(job)
-        synchronized(lock) {
-            if (jobsExecuting < properties.getMaxConcurrentJobs()) {
-                jobsExecuting++
-                val nextJob = queue.pop()
-                execute(nextJob)
-            }
+    fun addToQueue(job: Job, bypassSizeCheck: Boolean = false) {
+        try {
+            queue.push(job)
+            nextJob(bypassSizeCheck)
+        } catch (e: QueueFull) {
+            queue.pollLast()
+            throw e
         }
     }
 
-    private fun nextJob() {
+    fun nextJob(bypassSizeCheck: Boolean = false) {
         synchronized(lock) {
-            val job = queue.poll()
+            val job = queue.peek()
             if (job == null) return
             else {
-                jobsExecuting++
-                execute(job)
+                execute(job, bypassSizeCheck)
             }
         }
     }
 
-    private fun execute(job: Job) {
-        if(job.origin == JobOrigin.REMOTE) return executeLocally(job)
+    //call this when a new worker comes alive, to assign new work to it
+    fun resetQueue() {
+        synchronized(lock) { //this potentially locks queue for a while
+            val queueSize = queue.size
+            for(i in 1..queueSize) {
+                val top = queue.pop()
+                addToQueue(top)
+            }
+        }
+    }
 
-        var minQueueSize = dao.getQueueSize()
-        var minQueueLocation = "localhost"
-        //this is not exactly thread-safe (esp in distributed environment), but oh well
+    private fun execute(job: Job, bypassSizeCheck: Boolean) {
+        if(job.origin == JobOrigin.REMOTE) return executeLocally(job, bypassSizeCheck)
+
+        var minQueueLocation = NODE_LOCAL
+        var minQueueSize = try {
+            ensureQueueCanAcceptNewVideo()
+            dao.getQueueSize()
+        } catch (e: Exception) {
+            Int.MAX_VALUE
+        }
+        //this is not exactly thread-safe (esp in distributed environment), but oh well, I'm not going to implement distributed locks
         for(worker in properties.getAvailableWorkers()) {
             try {
                 val workerEntity = workerDao.getOrCreateWorker(worker)
@@ -79,37 +94,48 @@ class WorkQueue(
             }
         }
 
-        if(minQueueLocation == "localhost") return executeLocally(job)
-        else try {
-            executeRemotely(job, minQueueLocation)
-        } catch (e: Exception) {
-            logger.warn { "Exception occurred while sending work to worker: ${e.javaClass.name}: ${e.message}. Executing job locally." }
-            executeLocally(job)
+        synchronized(lock) {
+            if (minQueueLocation == "localhost") return executeLocally(job, bypassSizeCheck)
+            else try {
+                executeRemotely(job, minQueueLocation)
+            } catch (e: Exception) {
+                logger.warn { "Exception occurred while sending work to worker: ${e.javaClass.name}: ${e.message}. Executing job locally." }
+                executeLocally(job, bypassSizeCheck)
+            }
         }
     }
 
-    private fun executeLocally(job: Job) {
-        ensureQueueCanAcceptNewVideo(job.queueFile.length())
-        mainExecutor.execute {
-            try {
-                converter.reencode(job.queueFile, job.videoId)
-                shortTasksExecutor.execute(job.finalizedBy)
-            } catch (e: Exception) {
-                logger.error(e) { "Unexpected exception occurred while executing reencode job; failing video ${job.videoId}" }
-                dao.setVideoError(job.videoId)
+    private fun executeLocally(job: Job, bypassSizeCheck: Boolean) {
+        synchronized(lock) {
+            if(!bypassSizeCheck) ensureQueueCanAcceptNewVideo()
+            if (jobsExecuting < properties.getMaxConcurrentLocalJobs()) {
+                jobsExecuting++
+                val nextJob = queue.pop()
+                dao.setVideoInQueue(nextJob.videoId)
+                mainExecutor.execute {
+                    try {
+                        dao.setVideoProcessing(nextJob.videoId, NODE_LOCAL)
+                        converter.reencode(nextJob.queueFile, nextJob.videoId)
+                        shortTasksExecutor.execute(nextJob.finalizedBy)
+                    } catch (e: Exception) {
+                        logger.error(e) { "Unexpected exception occurred while executing reencode job; failing video ${job.videoId}" }
+                        dao.setVideoError(nextJob.videoId)
+                    }
+                    jobsExecuting--
+                    nextJob()
+                }
             }
-            nextJob()
-            jobsExecuting--
         }
     }
+
     private fun executeRemotely(job: Job, worker: String) {
         workerService.sendWorkToWorker(worker, job.queueFile.name, job.videoId, job.queueFile)
-        jobsExecuting--
+        queue.pop() //pop job only after we're sure execution has started
+        dao.setVideoProcessing(job.videoId, NODE_LOCAL)
     }
 
-    fun ensureQueueCanAcceptNewVideo(size: Long) {
-        if(utils.getQueueFreeSpaceMb()-size/(1024*1024) <= properties.getFreeSpaceThresholdMb()) throw NotEnoughSpace()
-        if(queue.size >= properties.getMaxQueueSize()) throw QueueFull()
+    fun ensureQueueCanAcceptNewVideo() {
+        if(queue.size > properties.getMaxQueueSize()) throw QueueFull()
     }
 
     fun getQueueSize() = queue.size

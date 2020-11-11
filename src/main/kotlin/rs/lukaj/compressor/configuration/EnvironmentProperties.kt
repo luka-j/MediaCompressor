@@ -27,12 +27,15 @@ class EnvironmentProperties {
 
     fun getExecutorType() = getProperty("mc.executor.strategy", "single")
     fun getSecondaryExecutorType() = getProperty("mc.executor2.strategy", "cached")
-    fun getMaxConcurrentJobs() = getProperty("mc.workqueue.concurrent", "1").toInt()
+    fun getMaxConcurrentLocalJobs() = getProperty("mc.workqueue.concurrent", "1").toInt()
 
     fun getClaimedCleanupFreeSpaceThreshold() = getProperty("mc.cleanup.claimed.threshold", "2000").toInt()
     fun getUnclaimedCleanupFreeSpaceThreshold() = getProperty("mc.cleanup.unclaimed.threshold", "4000").toInt()
     fun getClaimedCleanupTimeThreshold() = getProperty("mc.cleanup.claimed.time", "15").toLong()
     fun getUnclaimedCleanupTimeThreshold() = getProperty("mc.cleanup.unclaimed.time", "90").toLong()
+    fun getZombieErrorCleanupFreeSpaceThreshold() = getProperty("mc.cleanup.zombie.error.space", "6000").toInt()
+    fun getZombieErrorCleanupTimeThreshold() = getProperty("mc.cleanup.zombie.error.time", "45").toLong()
+    fun getTransitiveStatusesCleanupTimeThreshold() = getProperty("mc.cleanup.zombie.error.time", "15").toLong()
 
     fun isWorkerModeEnabled() = getProperty("mc.worker.enabled", "true").toBoolean()
     fun getAllowedMasterHosts() = getProperty("mc.worker.masters", "*").split(",")
@@ -41,11 +44,13 @@ class EnvironmentProperties {
         return if(workers == "") listOf() else workers.split(",")
         //apparently, split on empty string returns list of length 1
     }
+    fun getDownPingsThresholdToDeclareDead() = getProperty("mc.worker.downpings.threshold", "3").toInt()
     fun getMyMasterKey() = getProperty("mc.master.key", "").nullIf("")
     fun getSubmitWorkToMasterTimeout() = getProperty("mc.worker.submit.timeout", "1800").toLong()
     fun getSendWorkToWorkerTimeout() = getProperty("mc.master.send.timeout", "1200").toLong()
     fun getWorkerPingTimeout() = getProperty("mc.worker.ping.timeout", "5").toLong()
     fun getQueueStatusRequestTimeout() = getProperty("mc.worker.status.timeout", "5").toLong()
+    fun getQueueIntegrityCheckTimeout() = getProperty("mc.worker.queueintegrity.timeout", "10").toLong()
 
     private fun getProperty(property: String, default: String) : String {
         val envVarName = property.replace('.', '_').toUpperCase()

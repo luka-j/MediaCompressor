@@ -15,7 +15,8 @@ class Worker(
         @Column(nullable=false, unique = true) var host: String,
         @Enumerated(EnumType.STRING) var status: WorkerStatus,
         @Column(nullable=false) var queueSize: Int,
-        @Column(nullable=false) var lastAliveTime: LocalDateTime
+        @Column(nullable=false) var lastAliveTime: LocalDateTime,
+        @Column(nullable = false) var downPings: Int
 ) : AuditModel(null, null)
 
 enum class WorkerStatus {
