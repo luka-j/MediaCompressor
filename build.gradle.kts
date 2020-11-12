@@ -34,6 +34,8 @@ dependencies {
     implementation("net.bramp.ffmpeg:ffmpeg:0.6.2")
     implementation("io.github.microutils:kotlin-logging:1.12.0")
     implementation("com.sendgrid:sendgrid-java:4.6.8")
+    implementation("io.github.config4k:config4k:0.4.2")
+
     developmentOnly("org.springframework.boot:spring-boot-devtools")
     runtimeOnly("org.postgresql:postgresql")
     annotationProcessor("org.springframework.boot:spring-boot-configuration-processor")

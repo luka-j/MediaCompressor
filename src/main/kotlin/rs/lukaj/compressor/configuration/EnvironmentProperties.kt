@@ -1,66 +1,112 @@
 package rs.lukaj.compressor.configuration
 
+import com.typesafe.config.Config
+import com.typesafe.config.ConfigFactory
 import org.springframework.stereotype.Component
 import rs.lukaj.compressor.util.collapseIfEmpty
 import rs.lukaj.compressor.util.nullIf
 import java.io.File
+import java.time.Instant
 
+private const val DEFAULT_CONFIG_FILE_LOCATION = "/opt/media-compressor/config.conf"
 @Component
 class EnvironmentProperties {
 
-    fun getVideoQueueLocation() = File(getProperty("mc.queue.videos.path", "/opt/media-compressor/queue"))
-    fun getMaxQueueSize() = getProperty("mc.queue.size", "5").toInt()
-    fun getFreeSpaceThresholdMb() = getProperty("mc.space.threshold", "1500").toInt()
-    fun getQueueMinimumSpaceRemaining() = getProperty("mc.space.threshold.panic", "300").toInt()
+    fun getVideoQueueLocation() = File(getProperty("queue.videos.path", "/opt/media-compressor/queue"))
+    fun getMaxQueueSize() = getProperty("queue.size", "5").toInt()
+    fun getFreeSpaceThresholdMb() = getProperty("space.threshold", "1500").toInt()
+    fun getQueueMinimumSpaceRemaining() = getProperty("space.threshold.panic", "300").toInt()
 
-    fun getVideoTargetLocation() = File(getProperty("mc.videos.path", "/opt/media-compressor/results"))
-    fun getVideoFormat() = getProperty("mc.video.format", "mp4")
-    fun getVideoCodec() = getProperty("mc.video.codec", "libx265")
-    fun getVideoFramerate() = getProperty("mc.video.framerate", "24").toDouble()
-    fun getAudioCodec() = getProperty("mc.audio.codec", "aac")
-    fun getAudioBitrate() = getProperty("mc.audio.bitrate", "32768").toLong()
-    fun getAudioSamplerate() = getProperty("mc.audio.samplerate", "44100").toInt()
-    fun getAudioChannels() = getProperty("mc.audio.channels", "1").toInt()
+    fun getVideoTargetLocation() = File(getProperty("videos.path", "/opt/media-compressor/results"))
+    fun getVideoFormat() = getProperty("video.format", "mp4")
+    fun getVideoCodec() = getProperty("video.codec", "libx265")
+    fun getVideoFramerate() = getProperty("video.framerate", "24").toDouble()
+    fun getAudioCodec() = getProperty("audio.codec", "aac")
+    fun getAudioBitrate() = getProperty("audio.bitrate", "32768").toLong()
+    fun getAudioSamplerate() = getProperty("audio.samplerate", "44100").toInt()
+    fun getAudioChannels() = getProperty("audio.channels", "1").toInt()
 
-    fun getSendgridApiKey() = getProperty("mc.sendgrid.apikey", "").nullIf("")
-    fun getMailSendingAddress() = getProperty("mc.sendgrid.from", "compressor@luka-j.rocks")
-    fun getHostUrl() = getProperty("mc.host.url", "https://compressor.luka-j.rocks")
+    fun getSendgridApiKey() = getProperty("sendgrid.apikey", "").nullIf("")
+    fun getMailSendingAddress() = getProperty("sendgrid.from", "compressor@luka-j.rocks")
+    fun getHostUrl() = getProperty("host.url", "https://compressor.luka-j.rocks")
 
-    fun getExecutorType() = getProperty("mc.executor.strategy", "single")
-    fun getSecondaryExecutorType() = getProperty("mc.executor2.strategy", "cached")
-    fun getMaxConcurrentLocalJobs() = getProperty("mc.workqueue.concurrent", "1").toInt()
+    fun getExecutorType() = getProperty("executor.strategy", "single")
+    fun getSecondaryExecutorType() = getProperty("executor2.strategy", "cached")
+    fun getMaxConcurrentLocalJobs() = getProperty("workqueue.concurrent", "1").toInt()
 
-    fun getClaimedCleanupFreeSpaceThreshold() = getProperty("mc.cleanup.claimed.threshold", "2000").toInt()
-    fun getUnclaimedCleanupFreeSpaceThreshold() = getProperty("mc.cleanup.unclaimed.threshold", "4000").toInt()
-    fun getClaimedCleanupTimeThreshold() = getProperty("mc.cleanup.claimed.time", "15").toLong()
-    fun getUnclaimedCleanupTimeThreshold() = getProperty("mc.cleanup.unclaimed.time", "90").toLong()
-    fun getZombieErrorCleanupFreeSpaceThreshold() = getProperty("mc.cleanup.zombie.error.space", "6000").toInt()
-    fun getZombieErrorCleanupTimeThreshold() = getProperty("mc.cleanup.zombie.error.time", "45").toLong()
-    fun getTransitiveStatusesCleanupTimeThreshold() = getProperty("mc.cleanup.zombie.error.time", "15").toLong()
+    fun getClaimedCleanupFreeSpaceThreshold() = getProperty("cleanup.claimed.threshold", "2000").toInt()
+    fun getUnclaimedCleanupFreeSpaceThreshold() = getProperty("cleanup.unclaimed.threshold", "4000").toInt()
+    fun getClaimedCleanupTimeThreshold() = getProperty("cleanup.claimed.time", "15").toLong()
+    fun getUnclaimedCleanupTimeThreshold() = getProperty("cleanup.unclaimed.time", "90").toLong()
+    fun getZombieErrorCleanupFreeSpaceThreshold() = getProperty("cleanup.zombie.error.space", "6000").toInt()
+    fun getZombieErrorCleanupTimeThreshold() = getProperty("cleanup.zombie.error.time", "45").toLong()
+    fun getTransitiveStatusesCleanupTimeThreshold() = getProperty("cleanup.zombie.error.time", "15").toLong()
 
-    fun isWorkerModeEnabled() = getProperty("mc.worker.enabled", "true").toBoolean()
-    fun getAllowedMasterHosts() = getProperty("mc.worker.masters", "").split(",").collapseIfEmpty()
-    fun getAvailableWorkers() : List<String> = getProperty("mc.workers.available", "").split(",").collapseIfEmpty()
-    fun getDownPingsThresholdToDeclareDead() = getProperty("mc.worker.downpings.threshold", "3").toInt()
-    fun getMyMasterKey() = getProperty("mc.master.key", "").nullIf("")
-    fun getSubmitWorkToMasterTimeout() = getProperty("mc.worker.submit.timeout", "1800").toLong()
-    fun getSubmitWorkToMasterRetryAttempts() = getProperty("mc.worker.submit.retries", "5").toLong()
-    fun getSubmitWorkToMasterMinBackoff() = getProperty("mc.worker.submit.retry.mindelay", "10").toLong()
-    fun getSendWorkToWorkerTimeout() = getProperty("mc.master.send.timeout", "1200").toLong()
-    fun getSendWorkToWorkerTimeoutRetryAttempts() = getProperty("mc.master.send.retries", "3").toLong()
-    fun getSendWorkToWorkerTimeoutMinBackoff() = getProperty("mc.master.send.retry.mindelay", "5").toLong()
-    fun getWorkerPingTimeout() = getProperty("mc.worker.ping.timeout", "5").toLong()
-    fun getQueueStatusRequestTimeout() = getProperty("mc.worker.status.timeout", "5").toLong()
-    fun getQueueIntegrityCheckTimeout() = getProperty("mc.worker.queueintegrity.timeout", "10").toLong()
+    fun isWorkerModeEnabled() = getProperty("worker.enabled", "true").toBoolean()
+    fun getAllowedMasterHosts() = getProperty("worker.masters", "").split(",").collapseIfEmpty()
+    fun getAvailableWorkers() : List<String> = getProperty("workers.available", "").split(",").collapseIfEmpty()
+    fun getDownPingsThresholdToDeclareDead() = getProperty("worker.downpings.threshold", "3").toInt()
+    fun getMyMasterKey() = getProperty("master.key", "").nullIf("")
+    fun getSubmitWorkToMasterTimeout() = getProperty("worker.submit.timeout", "1800").toLong()
+    fun getSubmitWorkToMasterRetryAttempts() = getProperty("worker.submit.retries", "5").toLong()
+    fun getSubmitWorkToMasterMinBackoff() = getProperty("worker.submit.retry.mindelay", "10").toLong()
+    fun getSendWorkToWorkerTimeout() = getProperty("master.send.timeout", "1200").toLong()
+    fun getSendWorkToWorkerTimeoutRetryAttempts() = getProperty("master.send.retries", "3").toLong()
+    fun getSendWorkToWorkerTimeoutMinBackoff() = getProperty("master.send.retry.mindelay", "5").toLong()
+    fun getWorkerPingTimeout() = getProperty("worker.ping.timeout", "5").toLong()
+    fun getQueueStatusRequestTimeout() = getProperty("worker.status.timeout", "5").toLong()
+    fun getQueueIntegrityCheckTimeout() = getProperty("worker.queueintegrity.timeout", "10").toLong()
 
-    fun getQueueFullResponseCachingTime() = getProperty("mc.videoapi.queuefull.cache.time", "60").toLong()
+    fun getQueueFullResponseCachingTime() = getProperty("videoapi.queuefull.cache.time", "60").toLong()
+
+    /**
+     * Attempts to retrieve property from several locations. First, it attempts to find it in a file determined by
+     * [EnvironmentProperties.getConfigFileLocation]. If not found, it prefixes the property with "mc." and attempts
+     * to find that in System properties. If still not found, it uppercases the system property name, replaces dots
+     * with underscores and attempts to find that among envrionment variables (so the variable starts with "MC_").
+     * If no value is found in any of these three sources, returns default.
+     */
     private fun getProperty(property: String, default: String) : String {
-        val envVarName = property.replace('.', '_').toUpperCase()
+        val configProperty = getPropertyFromConfigFile(property)
+        if(configProperty != null) return configProperty
+
+        val systemProperty = "mc.$property"
+        val jvmProperty : String? = System.getProperty(systemProperty, default)
+        if(jvmProperty != null) return jvmProperty
+
+        val envVarName = systemProperty.replace('.', '_').toUpperCase()
         val envVar : String? = System.getenv(envVarName)
         if(envVar != null) return envVar
 
-        return System.getProperty(property, default)
+        return default
     }
 
-    //todo runtime-modifiable config
+
+    private var currentConfig: Config? = null
+    private var lastConfigUpdate: Instant = Instant.EPOCH
+
+    private fun getPropertyFromConfigFile(property: String) : String? {
+        val configFile = File(getConfigFileLocation(DEFAULT_CONFIG_FILE_LOCATION))
+        if(!configFile.isFile) return null
+
+        if(Instant.ofEpochMilli(configFile.lastModified()).isAfter(lastConfigUpdate)) {
+            currentConfig = ConfigFactory.parseFile(configFile)
+            lastConfigUpdate = Instant.now()
+            if(currentConfig!!.hasPath("config.location"))
+                System.setProperty("mc.config.location", currentConfig!!.getString("config.location"))
+        }
+
+        return if(currentConfig!!.hasPath(property)) currentConfig!!.getString(property)
+        else null
+    }
+
+    private fun getConfigFileLocation(default: String) : String {
+        val jvmProperty = System.getProperty("mc.config.location")
+        if(jvmProperty != null) return jvmProperty
+
+        val envVar : String? = System.getenv("MC_CONFIG_LOCATION")
+        if(envVar != null) return envVar
+
+        return default
+    }
 }
