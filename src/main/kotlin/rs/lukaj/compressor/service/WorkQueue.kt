@@ -67,41 +67,47 @@ class WorkQueue(
     private fun execute(job: Job, bypassSizeCheck: Boolean, onJobFailed: (UUID)->Unit) {
         if(job.origin == JobOrigin.REMOTE) return executeLocally(job, bypassSizeCheck, onJobFailed)
 
-        var minQueueLocation = NODE_LOCAL
-        var minQueueSize = try {
+        val eligibleNodes = TreeSet<Pair<String, Double>>(Comparator.comparingDouble { it.second })
+        try {
             ensureQueueCanAcceptNewVideo()
-            dao.getQueueSize()
+            eligibleNodes.add(Pair(NODE_LOCAL, getQueueSize() * 1.0))
         } catch (e: Exception) {
-            Int.MAX_VALUE
+            logger.info { "NODE_LOCAL won't compete for ${job.videoId}: ${e::class.simpleName}" }
         }
         //this is not exactly thread-safe (esp in distributed environment), but oh well, I'm not going to implement distributed locks
-        for(worker in properties.getAvailableWorkers()) {
-            try {
-                val workerEntity = workerDao.getOrCreateWorker(worker)
-                if(workerEntity.status == WorkerStatus.DOWN) continue
-                val status = workerService.getQueueStatus(worker)
-                workerDao.setWorkerQueueSize(workerEntity, status.size)
-                if(status.isDiskFull) continue
-                if(status.size >= status.maxSize) continue
-                if(status.size < minQueueSize) {
-                    minQueueSize = status.size
-                    minQueueLocation = worker
+
+        if(properties.getMyMasterKey() != null) {
+            for (worker in properties.getAvailableWorkers()) {
+                try {
+                    val workerEntity = workerDao.getOrCreateWorker(worker)
+                    if (workerEntity.status == WorkerStatus.DOWN) continue
+                    val status = workerService.getQueueStatus(worker)
+                    workerDao.setWorkerQueueSize(workerEntity, status.size)
+                    if (status.isDiskFull) continue
+                    if (status.size >= status.maxSize) continue
+                    eligibleNodes.add(Pair(worker, status.size * 1.0))
+                } catch (e: Exception) {
+                    logger.info { "Got ${e.javaClass.name}: ${e.message} while fetching worker status, not sending work to it" }
+                    continue
                 }
-            } catch (e: Exception) {
-                logger.info { "Got ${e.javaClass.name}: ${e.message} while fetching worker status, not sending work to it" }
-                continue
             }
         }
 
         synchronized(lock) {
-            if (minQueueLocation == "localhost") return executeLocally(job, bypassSizeCheck, onJobFailed)
-            else try {
-                executeRemotely(job, minQueueLocation)
-            } catch (e: Exception) {
-                logger.warn { "Exception occurred while sending work to worker: ${e.javaClass.name}: ${e.message}. Executing job locally." }
-                executeLocally(job, bypassSizeCheck, onJobFailed)
+            for(node in eligibleNodes) {
+                try {
+                    return if(node.first == NODE_LOCAL) executeLocally(job, bypassSizeCheck, onJobFailed)
+                    else executeRemotely(job, node.first)
+                } catch (e: Exception) {
+                    logger.warn { "Exception occurred attempting to execute ${job.videoId} on ${node.first}. Moving on..." }
+                }
             }
         }
+
+        logger.warn { "No available workers for job ${job.videoId}. Rejecting." }
+        dao.setVideoRejected(job.videoId)
+        if(!job.queueFile.delete()) logger.warn { "Failed to delete ${job.queueFile.canonicalPath} of rejected job ${job.videoId}" }
+        throw QueueFull()
     }
 
     private fun executeLocally(job: Job, bypassSizeCheck: Boolean, onJobFailed: (UUID)->Unit) {
@@ -128,6 +134,10 @@ class WorkQueue(
     }
 
     private fun executeRemotely(job: Job, worker: String) {
+        if(properties.getMyMasterKey() == null) {
+            logger.error { "Attempted to send job to worker, but this instance doesn't have master key set! Add master key to config." }
+            throw RemoteExecutionInvocationException("Cannot execute job remotely without master key!")
+        }
         workerService.sendWorkToWorker(worker, job.queueFile.name, job.videoId, job.queueFile)
         queue.pop() //pop job only after we're sure execution has started
         dao.setVideoProcessing(job.videoId, NODE_LOCAL)
@@ -145,3 +155,5 @@ enum class JobOrigin { //locally originated job can be transferred to worker, re
     LOCAL,
     REMOTE
 }
+
+class RemoteExecutionInvocationException(msg: String) : Exception(msg)

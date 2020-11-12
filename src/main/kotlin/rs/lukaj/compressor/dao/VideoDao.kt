@@ -116,6 +116,7 @@ class VideoDao(
     }
 
     fun setVideoError(id: UUID) = setVideoStatus(id, VideoStatus.ERROR)
+    fun setVideoRejected(id: UUID) = setVideoStatus(id, VideoStatus.REJECTED)
 
     fun getVideosProcessingOnNode(node: String) = repository.findAllByStatusEqualsAndNodeEquals(VideoStatus.PROCESSING, node)
 
