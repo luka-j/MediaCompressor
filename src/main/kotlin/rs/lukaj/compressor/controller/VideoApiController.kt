@@ -2,12 +2,16 @@ package rs.lukaj.compressor.controller
 
 import mu.KotlinLogging
 import org.springframework.beans.factory.annotation.Autowired
+import org.springframework.http.HttpStatus
 import org.springframework.http.ResponseEntity
 import org.springframework.stereotype.Controller
 import org.springframework.web.bind.annotation.*
 import rs.lukaj.compressor.configuration.EnvironmentProperties
 import rs.lukaj.compressor.service.VideoCrudService
+import rs.lukaj.compressor.util.NotEnoughSpace
+import rs.lukaj.compressor.util.QueueFull
 import java.io.File
+import java.time.LocalDateTime
 import java.util.*
 import javax.servlet.http.HttpServletRequest
 
@@ -21,6 +25,7 @@ class VideoApiController(
 ) {
 
     private val logger = KotlinLogging.logger {}
+    private var lastQueueFullResponse = Pair(LocalDateTime.MIN, HttpStatus.OK)
 
     @PostMapping("/", consumes = ["*/*"])
     fun uploadVideo(@RequestHeader("User-Email", required = true) email: String,
@@ -43,7 +48,23 @@ class VideoApiController(
                     @RequestHeader(FILE_SIZE_HEADER, defaultValue = (400 * 1024 * 1024).toString()) size: Long) : ResponseEntity<Any> {
         if(key == properties.getMyMasterKey()) return ResponseEntity.ok().build()
 
-        service.checkQueueFull(key, size)
-        return ResponseEntity.ok().build()
+        val now = LocalDateTime.now()
+        if(lastQueueFullResponse.first.plusSeconds(properties.getQueueFullResponseCachingTime()).isBefore(now)) {
+            return ResponseEntity.status(lastQueueFullResponse.second).build()
+        }
+
+        return try {
+            service.checkQueueFull(key, size)
+            lastQueueFullResponse = Pair(now, HttpStatus.OK)
+            ResponseEntity.ok().build()
+        } catch (e: Exception) {
+            if(e is QueueFull || e is NotEnoughSpace) {
+                lastQueueFullResponse = Pair(now, HttpStatus.SERVICE_UNAVAILABLE)
+                ResponseEntity.status(HttpStatus.SERVICE_UNAVAILABLE).build()
+            } else {
+                logger.error(e) { "Unexpected exception occurred while checking if queue is full!" }
+                ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).build()
+            }
+        }
     }
 }

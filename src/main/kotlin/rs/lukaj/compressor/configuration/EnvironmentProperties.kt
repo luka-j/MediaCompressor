@@ -56,6 +56,7 @@ class EnvironmentProperties {
     fun getQueueStatusRequestTimeout() = getProperty("mc.worker.status.timeout", "5").toLong()
     fun getQueueIntegrityCheckTimeout() = getProperty("mc.worker.queueintegrity.timeout", "10").toLong()
 
+    fun getQueueFullResponseCachingTime() = getProperty("mc.videoapi.queuefull.cache.time", "60").toLong()
     private fun getProperty(property: String, default: String) : String {
         val envVarName = property.replace('.', '_').toUpperCase()
         val envVar : String? = System.getenv(envVarName)
