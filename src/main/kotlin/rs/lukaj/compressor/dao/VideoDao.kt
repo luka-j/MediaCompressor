@@ -34,9 +34,9 @@ class VideoDao(
         return repository.countAllByStatusInAndEmailEquals(IN_QUEUE_STATUSES, email)
     }
 
-    fun createVideo(id: UUID?, name: String, size: Long, email: String, origin: String) : Video {
-        val video = Video(id, name, email, size, 0, 0, .0f,
-                VideoStatus.UPLOADING, NODE_LOCAL, origin)
+    fun createVideo(name: String, size: Long, email: String, origin: String, originId: UUID?) : Video {
+        val video = Video(null, name, email, size, 0, 0, .0f,
+                VideoStatus.UPLOADING, NODE_LOCAL, origin, originId)
         return repository.save(video)
     }
 
@@ -87,6 +87,8 @@ class VideoDao(
             repository.findAllByStatusEqualsAndEmailEquals(VideoStatus.EMAIL_PENDING, email)
 
     fun getVideo(id: UUID) : Optional<Video> = repository.findById(id)
+
+    fun getVideoByOriginId(id: UUID) : Optional<Video> = repository.findByOriginId(id)
 
     fun setVideoDownloaded(id: UUID) = setVideoStatus(id, VideoStatus.DOWNLOADED)
 

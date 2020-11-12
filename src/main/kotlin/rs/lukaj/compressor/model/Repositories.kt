@@ -9,6 +9,8 @@ import java.util.*
 
 @Repository
 interface VideoRepository : JpaRepository<Video, UUID> {
+    fun findByOriginId(originId: UUID) : Optional<Video>
+
     fun countAllByStatusIn(statuses: Collection<VideoStatus>) : Int
     fun countAllByStatusInAndEmailEquals(statuses: Collection<VideoStatus>, email: String) : Int
     fun findAllByStatusEqualsAndEmailEquals(status: VideoStatus, email: String) : List<Video>

@@ -7,6 +7,7 @@ import org.springframework.stereotype.Service
 import org.springframework.web.client.HttpServerErrorException
 import org.springframework.web.reactive.function.BodyExtractors
 import org.springframework.web.reactive.function.client.WebClient
+import reactor.util.retry.Retry
 import rs.lukaj.compressor.configuration.EnvironmentProperties
 import rs.lukaj.compressor.controller.FILE_NAME_HEADER
 import rs.lukaj.compressor.controller.MASTER_KEY_HEADER
@@ -34,7 +35,8 @@ class WorkerGateway(
                 .header(VIDEO_ID_HEADER, originId.toString())
                 .body(video.outputStream(), OutputStream::class.java)
                 .exchange()
-                .retry(5)
+                .retryWhen(Retry.backoff(properties.getSubmitWorkToMasterRetryAttempts(),
+                        Duration.ofSeconds(properties.getSubmitWorkToMasterMinBackoff())))
                 .blockOptional(Duration.ofSeconds(properties.getSubmitWorkToMasterTimeout()))
                 .orElseThrow {
                     logger.error { "Error occurred while submitting work to master!" }
@@ -57,7 +59,8 @@ class WorkerGateway(
                 .header(RETURN_URL_HEADER, properties.getHostUrl().addTrailingSlash() + "worker/accept")
                 .body(file.outputStream(), OutputStream::class.java)
                 .exchange()
-                .retry(3)
+                .retryWhen(Retry.backoff(properties.getSendWorkToWorkerTimeoutRetryAttempts(),
+                        Duration.ofSeconds(properties.getSendWorkToWorkerTimeoutMinBackoff())))
                 .blockOptional(Duration.ofSeconds(properties.getSendWorkToWorkerTimeout()))
                 .orElseThrow {
                     logger.error { "Error occurred while sending work to worker!" }

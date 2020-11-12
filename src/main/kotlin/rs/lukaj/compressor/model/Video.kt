@@ -19,7 +19,8 @@ class Video(
         @Column(name = "transcoding_speed", nullable = false) var transcodingSpeed: Float,
         @Enumerated(EnumType.STRING) @Column(nullable=false) var status: VideoStatus,
         @Column(nullable=false) var node: String,
-        @Column(nullable=false) var origin: String
+        @Column(nullable=false) var origin: String,
+        var originId: UUID?
         )
     : AuditModel(null, null)
 

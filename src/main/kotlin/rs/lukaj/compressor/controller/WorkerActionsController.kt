@@ -77,15 +77,13 @@ class WorkerActionsController(
         return ResponseEntity.ok().build()
     }
 
-    //todo check if worker's videoId is same as origin's videoId — if worker generates its own videoIds, this is not going to work
-    // (maybe store originId in a separate column)?
     @GetMapping("/queue/exists")
     fun isVideoInQueue(@RequestHeader(MASTER_KEY_HEADER) key: String,
                        @RequestParam("videoId") videoId: UUID,
                        request: HttpServletRequest) : ResponseEntity<Any> {
         ensureMasterAuthorized(key, request)
 
-        return if(service.videoExistsInQueue(videoId)) {
+        return if(service.videoFromRemoteExistsInQueue(videoId)) {
             ResponseEntity.ok().build()
         } else {
             ResponseEntity.notFound().build()

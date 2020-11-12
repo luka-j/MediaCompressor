@@ -5,7 +5,6 @@ import org.springframework.beans.factory.annotation.Autowired
 import org.springframework.scheduling.annotation.Scheduled
 import org.springframework.stereotype.Service
 import rs.lukaj.compressor.configuration.EnvironmentProperties
-import rs.lukaj.compressor.dao.NODE_LOCAL
 import rs.lukaj.compressor.dao.VideoDao
 import rs.lukaj.compressor.util.Utils
 import java.io.File

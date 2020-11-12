@@ -92,7 +92,8 @@ class VideoCrudService(
 
     fun videoExists(id: UUID) : Boolean = dao.getVideo(id).isPresent
 
-    fun videoExistsInQueue(id: UUID) = dao.getVideo(id).map { v -> IN_QUEUE_STATUSES.contains(v.status) }.orElse(false)
+    fun videoFromRemoteExistsInQueue(id: UUID) : Boolean = dao.getVideoByOriginId(id)
+            .map { v -> IN_QUEUE_STATUSES.contains(v.status) }.orElse(false)
 
     fun getQueueSize() = dao.getQueueSize()
 
@@ -141,7 +142,7 @@ class VideoCrudService(
 
     private fun prepareVideoForQueue(name: String, size: Long, email: String, origin: String, file: InputStream,
                                      originId: UUID? = null) : Video {
-        val video = dao.createVideo(originId, name, size, email, origin)
+        val video = dao.createVideo(name, size, email, origin, originId)
         val destFile = File(properties.getVideoQueueLocation(), name)
         file.copyTo(destFile.outputStream(), 1048576)
         dao.setVideoUploaded(video.id!!, destFile.length())
