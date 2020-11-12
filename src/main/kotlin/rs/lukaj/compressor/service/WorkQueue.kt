@@ -8,7 +8,6 @@ import rs.lukaj.compressor.dao.NODE_LOCAL
 import rs.lukaj.compressor.dao.VideoDao
 import rs.lukaj.compressor.dao.WorkerDao
 import rs.lukaj.compressor.model.WorkerStatus
-import rs.lukaj.compressor.util.NotEnoughSpace
 import rs.lukaj.compressor.util.QueueFull
 import rs.lukaj.compressor.util.Utils
 import java.io.File
@@ -22,7 +21,8 @@ class WorkQueue(
         @Autowired private val converter: VideoConverter,
         @Autowired private val dao: VideoDao,
         @Autowired private val workerDao: WorkerDao,
-        @Autowired private val workerService : WorkerGateway
+        @Autowired private val workerService : WorkerGateway,
+        @Autowired private val videoService: VideoCrudService
 ) {
     private val logger = KotlinLogging.logger {}
 
@@ -119,7 +119,7 @@ class WorkQueue(
                         shortTasksExecutor.execute(nextJob.finalizedBy)
                     } catch (e: Exception) {
                         logger.error(e) { "Unexpected exception occurred while executing reencode job; failing video ${job.videoId}" }
-                        dao.setVideoError(nextJob.videoId)
+                        videoService.failJob(nextJob.videoId)
                     }
                     jobsExecuting--
                     nextJob()

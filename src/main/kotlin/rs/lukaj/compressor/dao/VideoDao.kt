@@ -115,16 +115,16 @@ class VideoDao(
         repository.save(video)
     }
 
-    fun setVideoError(id: UUID) = setVideoStatus(id, VideoStatus.ERROR) //todo email user?
+    fun setVideoError(id: UUID) = setVideoStatus(id, VideoStatus.ERROR)
 
     fun getVideosProcessingOnNode(node: String) = repository.findAllByStatusEqualsAndNodeEquals(VideoStatus.PROCESSING, node)
 
     fun getVideosProcessingOnWorkers() = repository.findAllByStatusEqualsAndNodeNot(VideoStatus.PROCESSING, NODE_LOCAL)
 
-    private fun setVideoStatus(id: UUID, status: VideoStatus) {
+    private fun setVideoStatus(id: UUID, status: VideoStatus) : Video {
         val video = findOrThrow(id)
         video.status = status
-        repository.save(video)
+        return repository.save(video)
     }
 
     private fun findOrThrow(id: UUID) : Video {

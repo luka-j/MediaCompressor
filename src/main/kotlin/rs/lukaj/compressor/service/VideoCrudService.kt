@@ -10,7 +10,10 @@ import rs.lukaj.compressor.dao.NODE_LOCAL
 import rs.lukaj.compressor.dao.VideoDao
 import rs.lukaj.compressor.model.Video
 import rs.lukaj.compressor.model.VideoStatus
-import rs.lukaj.compressor.util.*
+import rs.lukaj.compressor.util.EntityNotFound
+import rs.lukaj.compressor.util.InvalidStatus
+import rs.lukaj.compressor.util.NotEnoughSpace
+import rs.lukaj.compressor.util.Utils
 import java.io.File
 import java.io.InputStream
 import java.util.*
@@ -50,7 +53,7 @@ class VideoCrudService(
                 dao.setVideoDeleted(videoId)
             } catch (e: Exception) {
                 logger.error(e) { "Unexpected exception occurred while sending result to master; failing video $videoId" }
-                dao.setVideoError(videoId)
+                failJob(videoId)
             }
         })
     }
@@ -97,21 +100,28 @@ class VideoCrudService(
 
     fun getQueueSize() = dao.getQueueSize()
 
-    fun checkQueueFull(requestOrigin: String, size: Long) {
-        ensureEnoughFreeSpaceInQueue(size)
-        if(queue.getQueueSize() < properties.getMaxQueueSize()) return
+    fun isQueueFull(requestOrigin: String, size: Long) : Boolean {
+        if(isThereEnoughFreeSpaceInQueue(size) && queue.getQueueSize() < properties.getMaxQueueSize()) return false
         val myMasterKey = properties.getMyMasterKey()
-        if(requestOrigin == "" && myMasterKey == null) throw QueueFull()
+        if(requestOrigin == "" && myMasterKey == null) return true
 
         val originKey = if(requestOrigin == "") myMasterKey!! else requestOrigin
         for(worker in properties.getAvailableWorkers()) {
             try {
-                if (!workerService.isQueueFull(worker, originKey)) return
+                if (!workerService.isQueueFull(worker, originKey)) return false
             } catch (e: Exception) {
                 //ignore, worker is unavailable / queue full / whatever; go to the next one
             }
         }
-        throw QueueFull()
+        return true
+    }
+
+    fun failJob(videoId: UUID) {
+        logger.info { "Failing video $videoId and notifying user." }
+        val video = dao.setVideoError(videoId)
+        mailService.sendMail("An error occurred while processing your video.", "An error occurred while " +
+                "processing your video ${video.name}. This is the id: ${video.id}, so drop me a message. Sorry :/",
+                false, Email(video.email))
     }
 
     private fun buildLocallyOriginatedJob(video: Video) : Job {
@@ -136,8 +146,11 @@ class VideoCrudService(
         }
     }
 
+    private fun isThereEnoughFreeSpaceInQueue(size: Long) : Boolean {
+        return utils.getQueueFreeSpaceMb()-size/(1024*1024) > properties.getQueueMinimumSpaceRemaining()
+    }
     private fun ensureEnoughFreeSpaceInQueue(size: Long) {
-        if(utils.getQueueFreeSpaceMb()-size/(1024*1024) <= properties.getQueueMinimumSpaceRemaining()) throw NotEnoughSpace()
+        if(!isThereEnoughFreeSpaceInQueue(size)) throw NotEnoughSpace()
     }
 
     private fun prepareVideoForQueue(name: String, size: Long, email: String, origin: String, file: InputStream,

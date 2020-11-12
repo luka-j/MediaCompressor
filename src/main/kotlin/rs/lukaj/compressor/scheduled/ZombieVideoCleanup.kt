@@ -6,6 +6,7 @@ import org.springframework.scheduling.annotation.Scheduled
 import org.springframework.stereotype.Service
 import rs.lukaj.compressor.configuration.EnvironmentProperties
 import rs.lukaj.compressor.dao.VideoDao
+import rs.lukaj.compressor.service.VideoCrudService
 import rs.lukaj.compressor.util.Utils
 import java.io.File
 
@@ -13,7 +14,8 @@ import java.io.File
 class ZombieVideoCleanup(
         @Autowired private val dao: VideoDao,
         @Autowired private val utils : Utils,
-        @Autowired private val properties: EnvironmentProperties
+        @Autowired private val properties: EnvironmentProperties,
+        @Autowired private val service: VideoCrudService
 ) {
     private val logger = KotlinLogging.logger {}
 
@@ -35,7 +37,7 @@ class ZombieVideoCleanup(
         val zombies = dao.getOldTransitiveStatusZombieVideos()
         for(video in zombies) {
             logger.error { "Video ${video.id} (${video.name}) stuck in ${video.status} too long; marking it as ERROR." }
-            dao.setVideoError(video.id!!)
+            service.failJob(video.id!!)
         }
     }
 
