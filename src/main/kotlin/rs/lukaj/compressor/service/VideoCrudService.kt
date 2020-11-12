@@ -49,6 +49,7 @@ class VideoCrudService(
         queue.addToQueue(Job(videoId, queueFile, JobOrigin.REMOTE) {
             try {
                 workerService.sendResultToMaster(originId, resultFile, returnUrl)
+                if (!queueFile.delete()) logger.warn { "Failed to delete ${resultFile.canonicalPath} after sending to master." }
                 if (!resultFile.delete()) logger.warn { "Failed to delete ${resultFile.canonicalPath} after sending to master." }
                 dao.setVideoDeleted(videoId)
             } catch (e: Exception) {
@@ -66,6 +67,8 @@ class VideoCrudService(
         val destFile = File(properties.getVideoTargetLocation(), video.name)
         file.copyTo(destFile.outputStream(), 1048576)
         dao.setVideoProcessed(videoId, destFile.length())
+        val queueFile = File(properties.getVideoQueueLocation(), videoId.toString())
+        if(!queueFile.delete()) logger.warn { "Failed to delete ${queueFile.canonicalPath} after receiving result from worker." }
         sendMailToUserIfNeeded(videoId, video.email)
 
         try {
@@ -126,9 +129,11 @@ class VideoCrudService(
 
     private fun buildLocallyOriginatedJob(video: Video) : Job {
         val videoId = video.id!!
-        return Job(videoId, File(properties.getVideoQueueLocation(), video.name), JobOrigin.LOCAL) {
+        val queueFile = File(properties.getVideoQueueLocation(), video.name)
+        return Job(videoId, queueFile, JobOrigin.LOCAL) {
             try {
                 dao.setVideoProcessed(videoId, File(properties.getVideoTargetLocation(), video.name).length())
+                if(!queueFile.delete()) logger.warn { "Failed to delete ${queueFile.canonicalPath} after processing" }
                 sendMailToUserIfNeeded(videoId, video.email)
             } catch (e: Exception) {
                 logger.error(e) { "Unexpected exception occurred while finalizing job $videoId; doing nothing" }
