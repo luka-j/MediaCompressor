@@ -1,6 +1,7 @@
 package rs.lukaj.compressor.configuration
 
 import org.springframework.stereotype.Component
+import rs.lukaj.compressor.util.collapseIfEmpty
 import rs.lukaj.compressor.util.nullIf
 import java.io.File
 
@@ -38,12 +39,8 @@ class EnvironmentProperties {
     fun getTransitiveStatusesCleanupTimeThreshold() = getProperty("mc.cleanup.zombie.error.time", "15").toLong()
 
     fun isWorkerModeEnabled() = getProperty("mc.worker.enabled", "true").toBoolean()
-    fun getAllowedMasterHosts() = getProperty("mc.worker.masters", "*").split(",")
-    fun getAvailableWorkers() : List<String> {
-        val workers = getProperty("mc.workers.available", "")
-        return if(workers == "") listOf() else workers.split(",")
-        //apparently, split on empty string returns list of length 1
-    }
+    fun getAllowedMasterHosts() = getProperty("mc.worker.masters", "").split(",").collapseIfEmpty()
+    fun getAvailableWorkers() : List<String> = getProperty("mc.workers.available", "").split(",").collapseIfEmpty()
     fun getDownPingsThresholdToDeclareDead() = getProperty("mc.worker.downpings.threshold", "3").toInt()
     fun getMyMasterKey() = getProperty("mc.master.key", "").nullIf("")
     fun getSubmitWorkToMasterTimeout() = getProperty("mc.worker.submit.timeout", "1800").toLong()

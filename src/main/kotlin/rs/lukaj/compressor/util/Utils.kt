@@ -37,3 +37,4 @@ class Utils(@Autowired private val properties : EnvironmentProperties) {
 
 fun String.nullIf(other: String) : String? = if(this == other) null else this
 fun String.addTrailingSlash() = if(this.endsWith('/')) this else "$this/"
+fun List<String>.collapseIfEmpty() = if(this.size == 1 && this[0] == "") listOf() else this
