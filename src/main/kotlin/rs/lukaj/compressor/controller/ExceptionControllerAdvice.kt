@@ -4,6 +4,7 @@ import mu.KotlinLogging
 import org.springframework.beans.factory.annotation.Autowired
 import org.springframework.http.HttpStatus
 import org.springframework.http.ResponseEntity
+import org.springframework.web.bind.ServletRequestBindingException
 import org.springframework.web.bind.annotation.ControllerAdvice
 import org.springframework.web.bind.annotation.ExceptionHandler
 import rs.lukaj.compressor.dao.VideoDao
@@ -26,10 +27,15 @@ class ExceptionControllerAdvice(
         return ResponseEntity.status(exception.returnCode).body(exception.toResponse())
     }
 
+    @ExceptionHandler(value = [ServletRequestBindingException::class])
+    fun handleBadRequest(exception: ServletRequestBindingException, request: HttpServletRequest) : ResponseEntity<ErrorResponse> {
+        logger.info { "Caught ${exception::class.simpleName} - ${exception.message}. Returning 400." }
+        return ResponseEntity.status(HttpStatus.BAD_REQUEST).body(ErrorResponse("BadRequest", exception.message ?: ""))
+    }
+
     @ExceptionHandler(value = [Exception::class])
     fun handleException(exception: Exception, request: HttpServletRequest) : ResponseEntity<ErrorResponse> {
         logger.error(exception) { "Unexpected error occurred" }
-
         return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).body(ErrorResponse("InternalServerError",
                 "Something has gone wrong. Try again."))
     }

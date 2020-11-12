@@ -35,7 +35,7 @@ class VideoCrudService(
 
         val video = prepareVideoForQueue(name, size, email, NODE_LOCAL, file)
 
-        queue.addToQueue(buildLocallyOriginatedJob(video))
+        queue.addToQueue(buildLocallyOriginatedJob(video), {failJob(it)})
     }
 
     fun addVideoFromMaster(file: InputStream, originId: UUID, name: String, size: Long, origin: String, returnUrl: String) {
@@ -55,7 +55,7 @@ class VideoCrudService(
                 logger.error(e) { "Unexpected exception occurred while sending result to master; failing video $videoId" }
                 failJob(videoId)
             }
-        })
+        }, {failJob(it)})
     }
 
     fun acceptProcessedVideo(file: InputStream, videoId: UUID) {
@@ -69,14 +69,14 @@ class VideoCrudService(
         sendMailToUserIfNeeded(videoId, video.email)
 
         try {
-            queue.nextJob()
+            queue.nextJob({failJob(it)})
         } catch (e: Exception) {
             logger.info { "Attempted to move queue after accepting a job result from worker, but failed: ${e.javaClass.simpleName}" }
         }
     }
 
     fun reassignVideo(video: Video) {
-        queue.addToQueue(buildLocallyOriginatedJob(video), true)
+        queue.addToQueue(buildLocallyOriginatedJob(video), {failJob(it)},true)
     }
 
     fun reassignWorkFromDeadNode(node: String) {

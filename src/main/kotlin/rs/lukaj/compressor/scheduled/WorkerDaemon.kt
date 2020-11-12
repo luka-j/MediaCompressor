@@ -63,7 +63,7 @@ class WorkerDaemon(
             }
         }
         if(newWorkersAreUp) {
-            queue.resetQueue()
+            queue.resetQueue { videoService.failJob(it) }
         }
     }
 

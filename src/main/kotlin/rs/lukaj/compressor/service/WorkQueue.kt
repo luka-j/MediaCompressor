@@ -21,8 +21,7 @@ class WorkQueue(
         @Autowired private val converter: VideoConverter,
         @Autowired private val dao: VideoDao,
         @Autowired private val workerDao: WorkerDao,
-        @Autowired private val workerService : WorkerGateway,
-        @Autowired private val videoService: VideoCrudService
+        @Autowired private val workerService : WorkerGateway
 ) {
     private val logger = KotlinLogging.logger {}
 
@@ -34,39 +33,39 @@ class WorkQueue(
 
     @Volatile private var jobsExecuting = 0
 
-    fun addToQueue(job: Job, bypassSizeCheck: Boolean = false) {
+    fun addToQueue(job: Job, onJobFailed: (UUID)->Unit, bypassSizeCheck: Boolean = false) {
         try {
             queue.push(job)
-            nextJob(bypassSizeCheck)
+            nextJob(onJobFailed, bypassSizeCheck)
         } catch (e: QueueFull) {
             queue.pollLast()
             throw e
         }
     }
 
-    fun nextJob(bypassSizeCheck: Boolean = false) {
+    fun nextJob(onJobFailed: (UUID)->Unit, bypassSizeCheck: Boolean = false) {
         synchronized(lock) {
             val job = queue.peek()
             if (job == null) return
             else {
-                execute(job, bypassSizeCheck)
+                execute(job, bypassSizeCheck, onJobFailed)
             }
         }
     }
 
     //call this when a new worker comes alive, to assign new work to it
-    fun resetQueue() {
+    fun resetQueue(onJobFailed: (UUID) -> Unit) {
         synchronized(lock) { //this potentially locks queue for a while
             val queueSize = queue.size
             for(i in 1..queueSize) {
                 val top = queue.pop()
-                addToQueue(top)
+                addToQueue(top, onJobFailed)
             }
         }
     }
 
-    private fun execute(job: Job, bypassSizeCheck: Boolean) {
-        if(job.origin == JobOrigin.REMOTE) return executeLocally(job, bypassSizeCheck)
+    private fun execute(job: Job, bypassSizeCheck: Boolean, onJobFailed: (UUID)->Unit) {
+        if(job.origin == JobOrigin.REMOTE) return executeLocally(job, bypassSizeCheck, onJobFailed)
 
         var minQueueLocation = NODE_LOCAL
         var minQueueSize = try {
@@ -95,17 +94,17 @@ class WorkQueue(
         }
 
         synchronized(lock) {
-            if (minQueueLocation == "localhost") return executeLocally(job, bypassSizeCheck)
+            if (minQueueLocation == "localhost") return executeLocally(job, bypassSizeCheck, onJobFailed)
             else try {
                 executeRemotely(job, minQueueLocation)
             } catch (e: Exception) {
                 logger.warn { "Exception occurred while sending work to worker: ${e.javaClass.name}: ${e.message}. Executing job locally." }
-                executeLocally(job, bypassSizeCheck)
+                executeLocally(job, bypassSizeCheck, onJobFailed)
             }
         }
     }
 
-    private fun executeLocally(job: Job, bypassSizeCheck: Boolean) {
+    private fun executeLocally(job: Job, bypassSizeCheck: Boolean, onJobFailed: (UUID)->Unit) {
         synchronized(lock) {
             if(!bypassSizeCheck) ensureQueueCanAcceptNewVideo()
             if (jobsExecuting < properties.getMaxConcurrentLocalJobs()) {
@@ -119,10 +118,10 @@ class WorkQueue(
                         shortTasksExecutor.execute(nextJob.finalizedBy)
                     } catch (e: Exception) {
                         logger.error(e) { "Unexpected exception occurred while executing reencode job; failing video ${job.videoId}" }
-                        videoService.failJob(nextJob.videoId)
+                        onJobFailed(nextJob.videoId)
                     }
                     jobsExecuting--
-                    nextJob()
+                    nextJob(onJobFailed)
                 }
             }
         }
