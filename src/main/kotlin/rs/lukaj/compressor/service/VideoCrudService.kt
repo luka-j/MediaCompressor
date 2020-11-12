@@ -106,7 +106,7 @@ class VideoCrudService(
         if(requestOrigin == "" && myMasterKey == null) return true
 
         val originKey = if(requestOrigin == "") myMasterKey!! else requestOrigin
-        for(worker in properties.getAvailableWorkers()) {
+        for((worker, efficiency) in properties.getAvailableWorkers()) {
             try {
                 if (!workerService.isQueueFull(worker, originKey)) return false
             } catch (e: Exception) {

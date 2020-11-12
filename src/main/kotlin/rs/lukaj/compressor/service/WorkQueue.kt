@@ -70,22 +70,22 @@ class WorkQueue(
         val eligibleNodes = TreeSet<Pair<String, Double>>(Comparator.comparingDouble { it.second })
         try {
             ensureQueueCanAcceptNewVideo()
-            eligibleNodes.add(Pair(NODE_LOCAL, getQueueSize() * 1.0))
+            eligibleNodes.add(Pair(NODE_LOCAL, getQueueSize() * 1.0))  //todo scale each worker by some speed factor
         } catch (e: Exception) {
             logger.info { "NODE_LOCAL won't compete for ${job.videoId}: ${e::class.simpleName}" }
         }
         //this is not exactly thread-safe (esp in distributed environment), but oh well, I'm not going to implement distributed locks
 
         if(properties.getMyMasterKey() != null) {
-            for (worker in properties.getAvailableWorkers()) {
+            for ((host, efficiency) in properties.getAvailableWorkers()) {
                 try {
-                    val workerEntity = workerDao.getOrCreateWorker(worker)
+                    val workerEntity = workerDao.getOrCreateWorker(host)
                     if (workerEntity.status == WorkerStatus.DOWN) continue
-                    val status = workerService.getQueueStatus(worker)
+                    val status = workerService.getQueueStatus(host)
                     workerDao.setWorkerQueueSize(workerEntity, status.size)
                     if (status.isDiskFull) continue
                     if (status.size >= status.maxSize) continue
-                    eligibleNodes.add(Pair(worker, status.size * 1.0))
+                    eligibleNodes.add(Pair(host, status.size * efficiency))
                 } catch (e: Exception) {
                     logger.info { "Got ${e.javaClass.name}: ${e.message} while fetching worker status, not sending work to it" }
                     continue

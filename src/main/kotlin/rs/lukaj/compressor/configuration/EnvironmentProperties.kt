@@ -44,7 +44,12 @@ class EnvironmentProperties {
 
     fun isWorkerModeEnabled() = getProperty("worker.enabled", "true").toBoolean()
     fun getAllowedMasterHosts() = getProperty("worker.masters", "").split(",").collapseIfEmpty()
-    fun getAvailableWorkers() : List<String> = getProperty("workers.available", "").split(",").collapseIfEmpty()
+    fun getAvailableWorkers() : List<Pair<String, Double>> = getProperty("workers.available", "").split(",")
+            .collapseIfEmpty().map { wrk ->
+                val tokens = wrk.split(":")
+                if(tokens.size == 1) Pair(tokens[0], 1.0)
+                else Pair(tokens[0], tokens[1].toDouble())
+            }
     fun getDownPingsThresholdToDeclareDead() = getProperty("worker.downpings.threshold", "3").toInt()
     fun getMyMasterKey() = getProperty("master.key", "").nullIf("")
     fun getSubmitWorkToMasterTimeout() = getProperty("worker.submit.timeout", "1800").toLong()

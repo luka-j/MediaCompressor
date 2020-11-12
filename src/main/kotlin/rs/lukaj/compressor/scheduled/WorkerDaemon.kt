@@ -29,7 +29,7 @@ class WorkerDaemon(
     fun pingWorkers() {
         val workerHosts = properties.getAvailableWorkers()
         var newWorkersAreUp = false
-        for(host in workerHosts) {
+        for((host, efficiency) in workerHosts) {
             val worker = dao.getOrCreateWorker(host)
             val isUp = try {
                 workerService.ping(host)
