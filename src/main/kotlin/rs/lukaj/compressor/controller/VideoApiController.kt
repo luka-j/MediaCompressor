@@ -47,16 +47,16 @@ class VideoApiController(
         if(key == properties.getMyMasterKey()) return ResponseEntity.ok().build()
 
         val now = LocalDateTime.now()
-        if(lastQueueFullResponse.first.plusSeconds(properties.getQueueFullResponseCachingTime()).isBefore(now)) {
+        if(lastQueueFullResponse.first.plusSeconds(properties.getQueueFullResponseCachingTime()).isAfter(now)) {
             return ResponseEntity.status(lastQueueFullResponse.second).build()
         }
 
         return if(service.isQueueFull(key, size)) {
-            lastQueueFullResponse = Pair(now, HttpStatus.OK)
-            ResponseEntity.ok().build()
-        } else {
             lastQueueFullResponse = Pair(now, HttpStatus.SERVICE_UNAVAILABLE)
             ResponseEntity.status(HttpStatus.SERVICE_UNAVAILABLE).build()
+        } else {
+            lastQueueFullResponse = Pair(now, HttpStatus.OK)
+            ResponseEntity.ok().build()
         }
     }
 }

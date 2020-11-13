@@ -17,7 +17,7 @@ class FileCleanup(
 ) {
     private val logger = KotlinLogging.logger {}
 
-    @Scheduled(cron = "*/16 * * * *")
+    @Scheduled(cron = "0 */16 * * * *")
     fun removeClaimedFiles() {
         if(utils.getResultsFreeSpaceMb() > properties.getClaimedCleanupFreeSpaceThreshold()) return
 
@@ -36,7 +36,7 @@ class FileCleanup(
         logger.info { "Claimed files cleanup: Removed ${videos.size} files, totalling ${videos.map { it.compressedSize }.sum() / (1024 * 1024)}MB" }
     }
 
-    @Scheduled(cron = "*/9 * * * *")
+    @Scheduled(cron = "0 */9 * * * *")
     fun removeUnclaimedFiles() {
         if(utils.getResultsFreeSpaceMb() > properties.getUnclaimedCleanupFreeSpaceThreshold()) return
 

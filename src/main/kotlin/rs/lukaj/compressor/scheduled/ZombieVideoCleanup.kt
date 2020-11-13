@@ -19,7 +19,7 @@ class ZombieVideoCleanup(
 ) {
     private val logger = KotlinLogging.logger {}
 
-    @Scheduled(cron = "*/15 * * * *")
+    @Scheduled(cron = "0 */15 * * * *")
     fun cleanupZombieErrors() {
         if(utils.getQueueFreeSpaceMb() > properties.getZombieErrorCleanupFreeSpaceThreshold() &&
                 utils.getResultsFreeSpaceMb() > properties.getZombieErrorCleanupFreeSpaceThreshold()) return
@@ -32,7 +32,7 @@ class ZombieVideoCleanup(
         }
     }
 
-    @Scheduled(cron = "*/13 * * * *")
+    @Scheduled(cron = "0 */13 * * * *")
     fun cleanupJobsStuckInTransitiveStates() {
         val zombies = dao.getOldTransitiveStatusZombieVideos()
         for(video in zombies) {

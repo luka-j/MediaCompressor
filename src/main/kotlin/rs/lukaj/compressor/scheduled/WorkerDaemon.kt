@@ -67,7 +67,7 @@ class WorkerDaemon(
         }
     }
 
-    @Scheduled(cron = "*/18 * * * *")
+    @Scheduled(cron = "0 */18 * * * *")
     fun checkWorkerQueueIntegrity() {
         val videosOnWorkers = videoDao.getVideosProcessingOnWorkers()
         for(video in videosOnWorkers) {
