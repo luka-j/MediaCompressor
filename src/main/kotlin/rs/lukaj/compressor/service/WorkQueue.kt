@@ -70,7 +70,7 @@ class WorkQueue(
         val eligibleNodes = TreeSet<Pair<String, Double>>(Comparator.comparingDouble { it.second })
         try {
             ensureQueueCanAcceptNewVideo()
-            eligibleNodes.add(Pair(NODE_LOCAL, getQueueSize() * 1.0))  //todo scale each worker by some speed factor
+            eligibleNodes.add(Pair(NODE_LOCAL, getQueueSize() * 1.0))
         } catch (e: Exception) {
             logger.info { "NODE_LOCAL won't compete for ${job.videoId}: ${e::class.simpleName}" }
         }

@@ -42,6 +42,7 @@ class VideoConverter(
                 .setAudioBitRate(properties.getAudioBitrate()) // at 32 kbit/s
                 .setAudioChannels(properties.getAudioChannels()) // mono
                 .setVideoCodec(properties.getVideoCodec()) // Video using x265
+                .setConstantRateFactor(properties.getVideoCRF()) //
                 .setVideoFrameRate(properties.getVideoFramerate()) // at 24 frames per second
                 .setStrict(FFmpegBuilder.Strict.EXPERIMENTAL) // Allow FFmpeg to use experimental specs
                 .done()

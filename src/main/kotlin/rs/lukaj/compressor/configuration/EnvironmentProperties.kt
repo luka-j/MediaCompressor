@@ -21,6 +21,7 @@ class EnvironmentProperties {
     fun getVideoFormat() = getProperty("video.format", "mp4")
     fun getVideoCodec() = getProperty("video.codec", "libx265")
     fun getVideoFramerate() = getProperty("video.framerate", "24").toDouble()
+    fun getVideoCRF() = getProperty("video.crf", "28").toDouble()
     fun getAudioCodec() = getProperty("audio.codec", "aac")
     fun getAudioBitrate() = getProperty("audio.bitrate", "32768").toLong()
     fun getAudioSamplerate() = getProperty("audio.samplerate", "44100").toInt()
