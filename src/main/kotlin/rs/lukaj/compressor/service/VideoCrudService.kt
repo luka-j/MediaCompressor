@@ -5,7 +5,7 @@ import mu.KotlinLogging
 import org.springframework.beans.factory.annotation.Autowired
 import org.springframework.stereotype.Service
 import rs.lukaj.compressor.configuration.EnvironmentProperties
-import rs.lukaj.compressor.dao.IN_QUEUE_STATUSES
+import rs.lukaj.compressor.dao.IN_QUEUE_STATES
 import rs.lukaj.compressor.dao.NODE_LOCAL
 import rs.lukaj.compressor.dao.VideoDao
 import rs.lukaj.compressor.model.Video
@@ -99,7 +99,7 @@ class VideoCrudService(
     fun videoExists(id: UUID) : Boolean = dao.getVideo(id).isPresent
 
     fun videoFromRemoteExistsInQueue(id: UUID) : Boolean = dao.getVideoByOriginId(id)
-            .map { v -> IN_QUEUE_STATUSES.contains(v.status) }.orElse(false)
+            .map { v -> IN_QUEUE_STATES.contains(v.status) }.orElse(false)
 
     fun getQueueSize() = dao.getQueueSize()
 
@@ -125,6 +125,10 @@ class VideoCrudService(
         mailService.sendMail("An error occurred while processing your video.", "An error occurred while " +
                 "processing your video ${video.name}. This is the id: ${video.id}, so drop me a message. Sorry :/",
                 false, Email(video.email))
+        if(dao.getQueueSizeForEmail(video.email) > 0) {
+            logger.info { "There are some pending videos for user ${video.email}. Sending notifications..." }
+            sendMailNotification(video.email)
+        }
     }
 
     private fun buildLocallyOriginatedJob(video: Video) : Job {
@@ -162,7 +166,7 @@ class VideoCrudService(
                                      originId: UUID? = null) : Video {
         val video = dao.createVideo(name, size, email, origin, originId)
         val destFile = File(properties.getVideoQueueLocation(), name)
-        file.copyTo(destFile.outputStream(), 1048576)
+        file.copyTo(destFile.outputStream(), 131072)
         dao.setVideoUploaded(video.id!!, destFile.length())
         return video
     }
@@ -172,15 +176,15 @@ class VideoCrudService(
 
         //I could've used some proper templating here, but seemed like an overkill
         if(videos.size == 1) {
-            mailService.sendMail("Kompresovan snimak je spreman!", "Tvoj snimak ${videos[0].name} je spreman. " +
-                    "Možeš ga preuzeti <a href=\"${utils.buildDownloadLink(videos[0].id!!)}\">ovde</a>", true, Email(recipient))
+            mailService.sendMail("Compressed video is ready!", "Your video ${videos[0].name} is ready. " +
+                    "You can download it <a href=\"${utils.buildDownloadLink(videos[0].id!!)}\">here</a>", true, Email(recipient))
         } else {
-            val msg = StringBuilder("Tvoji snimci su spremni. Možeš ih naći na sledećim linkovima:<br><ul>")
+            val msg = StringBuilder("Your videos are ready. You can download them using these links:<br><ul>")
             for(video in videos) {
                 msg.append("<li><a href=\"${utils.buildDownloadLink(video.id!!)}\">${video.name}</a></li>")
             }
             msg.append("</ul>")
-            mailService.sendMail("Kompresovani snimci su spremni!", msg.toString(), true, Email(recipient))
+            mailService.sendMail("Compressed videos are ready!", msg.toString(), true, Email(recipient))
         }
 
         dao.setVideosReady(recipient)

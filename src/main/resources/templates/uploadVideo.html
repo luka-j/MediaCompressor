@@ -69,6 +69,8 @@
                         errorMsg.innerHTML = "Error processing your request: " + body.code + " - " + body.message;
                         errorMsg.style.display='block';
                     }
+                    progressBar.width('0%').html('');
+                    progressBar[0].setAttribute('aria-valuenow', '0');
                 }
             }
             request.setRequestHeader("User-Email", $('#email')[0].value);

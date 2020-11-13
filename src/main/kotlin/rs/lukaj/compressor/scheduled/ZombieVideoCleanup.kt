@@ -6,9 +6,11 @@ import org.springframework.scheduling.annotation.Scheduled
 import org.springframework.stereotype.Service
 import rs.lukaj.compressor.configuration.EnvironmentProperties
 import rs.lukaj.compressor.dao.VideoDao
+import rs.lukaj.compressor.model.VideoStatus
 import rs.lukaj.compressor.service.VideoCrudService
 import rs.lukaj.compressor.util.Utils
 import java.io.File
+import java.time.LocalDateTime
 
 @Service
 class ZombieVideoCleanup(
@@ -41,5 +43,15 @@ class ZombieVideoCleanup(
         }
     }
 
-    //todo remove files for other states, if it has not been touched for a long time and space is low (?)
+    @Scheduled(cron = "0 3 * * * *")
+    fun cleanupStaleVideos() {
+        val zombies = dao.getStaleVideos()
+        for(video in zombies) {
+            if (video.status != VideoStatus.IN_QUEUE || video.updatedAt!!.isBefore(
+                            LocalDateTime.now().minusMinutes(properties.getInQueueVideosCleanupTimeThreshold()))) {
+                logger.error { "Video ${video.id} (${video.name}) stuck in ${video.status} too long; marking it as ERROR." }
+                service.failJob(video.id!!)
+            }
+        }
+    }
 }

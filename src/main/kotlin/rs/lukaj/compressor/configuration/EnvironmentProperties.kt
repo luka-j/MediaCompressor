@@ -41,7 +41,9 @@ class EnvironmentProperties {
     fun getUnclaimedCleanupTimeThreshold() = getProperty("cleanup.unclaimed.time", "90").toLong()
     fun getZombieErrorCleanupFreeSpaceThreshold() = getProperty("cleanup.zombie.error.space", "6000").toInt()
     fun getZombieErrorCleanupTimeThreshold() = getProperty("cleanup.zombie.error.time", "45").toLong()
-    fun getTransitiveStatusesCleanupTimeThreshold() = getProperty("cleanup.zombie.error.time", "15").toLong()
+    fun getTransitiveStatusesCleanupTimeThreshold() = getProperty("cleanup.zombie.transitive.time", "15").toLong()
+    fun getStaleVideosCleanupTimeThreshold() = getProperty("cleanup.zombie.stale.time", "720").toLong()
+    fun getInQueueVideosCleanupTimeThreshold() = getProperty("cleanup.zombie.inqueue.time", "1440").toLong()
 
     fun isWorkerModeEnabled() = getProperty("worker.enabled", "true").toBoolean()
     fun getAllowedMasterHosts() = getProperty("worker.masters", "").split(",").collapseIfEmpty()
