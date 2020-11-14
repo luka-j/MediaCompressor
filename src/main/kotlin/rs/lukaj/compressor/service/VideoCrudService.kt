@@ -164,7 +164,7 @@ class VideoCrudService(
         return video
     }
 
-    private fun sendMailNotification(recipient: String) {
+    internal fun sendMailNotification(recipient: String) {
         val videos = dao.getAllPendingVideosForUser(recipient)
 
         //I could've used some proper templating here, but seemed like an overkill

@@ -47,8 +47,17 @@ class ZombieVideoCleanup(
     @Scheduled(cron = "0 3 * * * *")
     fun cleanupStaleVideos() {
         val zombies = dao.getStaleVideos()
+        val emailPendingCleared = HashSet<String>()
         for(video in zombies) {
-            if (video.status != VideoStatus.IN_QUEUE || video.updatedAt!!.isBefore(
+            if(video.status == VideoStatus.EMAIL_PENDING) {
+                if(!emailPendingCleared.contains(video.email)) {
+                    service.sendMailNotification(video.email)
+                    emailPendingCleared.add(video.email)
+                }
+                //else nothing - this video is READY and updatedAt is set to now when previous notification was sent
+                //the only reason we caught it here is because zombies list is not updated to reflect changes that
+                //happened in service.sendMailNotification(String)
+            } else if (video.status != VideoStatus.IN_QUEUE || video.updatedAt!!.isBefore(
                             LocalDateTime.now().minusMinutes(properties.getInQueueVideosCleanupTimeThreshold()))) {
                 logger.error { "Video ${video.id} (${video.name}) stuck in ${video.status} too long; marking it as ERROR." }
                 service.failJob(video.id!!)
