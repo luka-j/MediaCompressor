@@ -10,7 +10,6 @@ import rs.lukaj.compressor.dao.WorkerDao
 import rs.lukaj.compressor.model.WorkerStatus
 import rs.lukaj.compressor.util.QueueFull
 import rs.lukaj.compressor.util.Utils
-import java.io.File
 import java.util.*
 import java.util.concurrent.ConcurrentLinkedDeque
 
@@ -21,7 +20,8 @@ class WorkQueue(
         @Autowired private val converter: VideoConverter,
         @Autowired private val dao: VideoDao,
         @Autowired private val workerDao: WorkerDao,
-        @Autowired private val workerService : WorkerGateway
+        @Autowired private val workerService : WorkerGateway,
+        @Autowired private val files : FileService
 ) {
     private val logger = KotlinLogging.logger {}
 
@@ -106,7 +106,7 @@ class WorkQueue(
 
         logger.warn { "No available workers for job ${job.videoId}. Rejecting." }
         dao.setVideoRejected(job.videoId)
-        if(!job.queueFile.delete()) logger.warn { "Failed to delete ${job.queueFile.canonicalPath} of rejected job ${job.videoId}" }
+        files.deleteQueueVideo(job.videoId, "rejected job")
         throw QueueFull()
     }
 
@@ -120,7 +120,7 @@ class WorkQueue(
                 mainExecutor.execute {
                     try {
                         dao.setVideoProcessing(nextJob.videoId, NODE_LOCAL)
-                        converter.reencode(nextJob.queueFile, nextJob.videoId)
+                        converter.reencode(nextJob.videoId)
                         shortTasksExecutor.execute(nextJob.finalizedBy)
                     } catch (e: Exception) {
                         logger.error(e) { "Unexpected exception occurred while executing reencode job; failing video ${job.videoId}" }
@@ -138,7 +138,7 @@ class WorkQueue(
             logger.error { "Attempted to send job to worker, but this instance doesn't have master key set! Add master key to config." }
             throw RemoteExecutionInvocationException("Cannot execute job remotely without master key!")
         }
-        workerService.sendWorkToWorker(worker, job.queueFile.name, job.videoId, job.queueFile)
+        workerService.sendWorkToWorker(worker, job.videoId)
         queue.pop() //pop job only after we're sure execution has started
         dao.setVideoProcessing(job.videoId, NODE_LOCAL)
     }
@@ -150,7 +150,7 @@ class WorkQueue(
     fun getQueueSize() = queue.size
 }
 
-class Job(val videoId: UUID, val queueFile: File, val origin: JobOrigin, val finalizedBy: ()->Unit)
+class Job(val videoId: UUID, val origin: JobOrigin, val finalizedBy: ()->Unit)
 enum class JobOrigin { //locally originated job can be transferred to worker, remote job can't be transferred
     LOCAL,
     REMOTE

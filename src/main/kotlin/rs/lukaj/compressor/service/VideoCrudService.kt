@@ -25,7 +25,8 @@ class VideoCrudService(
         @Autowired private val utils: Utils,
         @Autowired private val mailService : SendGridGateway,
         @Autowired private val workerService : WorkerGateway,
-        @Autowired private val queue : WorkQueue
+        @Autowired private val queue : WorkQueue,
+        @Autowired private val files : FileService
 ) {
     private val logger = KotlinLogging.logger {}
 
@@ -42,15 +43,13 @@ class VideoCrudService(
         ensureEnoughFreeSpaceInQueue(size)
 
         val video = prepareVideoForQueue(name, size, "", origin, file, originId)
-        val queueFile = File(properties.getVideoQueueLocation(), name)
-        val resultFile = File(properties.getVideoTargetLocation(), name)
         val videoId = video.id!!
 
-        queue.addToQueue(Job(videoId, queueFile, JobOrigin.REMOTE) {
+        queue.addToQueue(Job(videoId, JobOrigin.REMOTE) {
             try {
-                workerService.sendResultToMaster(originId, resultFile, returnUrl)
-                if (!queueFile.delete()) logger.warn { "Failed to delete ${resultFile.canonicalPath} after sending to master." }
-                if (!resultFile.delete()) logger.warn { "Failed to delete ${resultFile.canonicalPath} after sending to master." }
+                workerService.sendResultToMaster(originId, returnUrl)
+                files.deleteQueueVideo(videoId, "after submitting to master")
+                files.deleteResultVideo(videoId, "after submitting to master")
                 dao.setVideoDeleted(videoId)
             } catch (e: Exception) {
                 logger.error(e) { "Unexpected exception occurred while sending result to master; failing video $videoId" }
@@ -64,11 +63,8 @@ class VideoCrudService(
             logger.error { "Video $videoId not found, but we supposedly sent it to worker!" }
             EntityNotFound("Video with id $videoId not found.")
         }
-        val destFile = File(properties.getVideoTargetLocation(), video.name)
-        file.copyTo(destFile.outputStream(), 1048576)
-        dao.setVideoProcessed(videoId, destFile.length())
-        val queueFile = File(properties.getVideoQueueLocation(), videoId.toString())
-        if(!queueFile.delete()) logger.warn { "Failed to delete ${queueFile.canonicalPath} after receiving result from worker." }
+        dao.setVideoProcessed(videoId, files.saveVideoToResults(videoId, file))
+        files.deleteQueueVideo(videoId, "after receiving result from worker")
         sendMailToUserIfNeeded(videoId, video.email)
 
         try {
@@ -93,7 +89,7 @@ class VideoCrudService(
         }
 
         dao.setVideoDownloaded(id)
-        return File(properties.getVideoTargetLocation(), video.name)
+        return files.getResultVideo(id)
     }
 
     fun videoExists(id: UUID) : Boolean = dao.getVideo(id).isPresent
@@ -133,11 +129,10 @@ class VideoCrudService(
 
     private fun buildLocallyOriginatedJob(video: Video) : Job {
         val videoId = video.id!!
-        val queueFile = File(properties.getVideoQueueLocation(), video.name)
-        return Job(videoId, queueFile, JobOrigin.LOCAL) {
+        return Job(videoId, JobOrigin.LOCAL) {
             try {
-                dao.setVideoProcessed(videoId, File(properties.getVideoTargetLocation(), video.name).length())
-                if(!queueFile.delete()) logger.warn { "Failed to delete ${queueFile.canonicalPath} after processing" }
+                dao.setVideoProcessed(videoId, files.getResultVideo(videoId).length())
+                files.deleteQueueVideo(videoId, "after processing")
                 sendMailToUserIfNeeded(videoId, video.email)
             } catch (e: Exception) {
                 logger.error(e) { "Unexpected exception occurred while finalizing job $videoId; doing nothing" }
@@ -165,9 +160,7 @@ class VideoCrudService(
     private fun prepareVideoForQueue(name: String, size: Long, email: String, origin: String, file: InputStream,
                                      originId: UUID? = null) : Video {
         val video = dao.createVideo(name, size, email, origin, originId)
-        val destFile = File(properties.getVideoQueueLocation(), name)
-        file.copyTo(destFile.outputStream(), 131072)
-        dao.setVideoUploaded(video.id!!, destFile.length())
+        dao.setVideoUploaded(video.id!!, files.saveVideoToQueue(video.id!!, file))
         return video
     }
 

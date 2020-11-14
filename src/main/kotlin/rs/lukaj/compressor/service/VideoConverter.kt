@@ -17,19 +17,20 @@ import java.util.concurrent.TimeUnit
 @Service
 class VideoConverter(
         @Autowired private val properties: EnvironmentProperties,
-        @Autowired private val dao: VideoDao
+        @Autowired private val dao: VideoDao,
+        @Autowired private val files: FileService
 ) {
     private val logger = KotlinLogging.logger {}
 
-    fun reencode(file: File, videoId: UUID) : File {
+    fun reencode(videoId: UUID) : File {
         logger.info { "Starting reencode of video $videoId" }
 
-        val resultFile = File(properties.getVideoTargetLocation(), file.name)
+        val resultFile = files.getResultVideo(videoId)
 
         val ffmpeg = FFmpeg("/usr/bin/ffmpeg")
         val ffprobe = FFprobe("/usr/bin/ffprobe")
 
-        val probe = ffprobe.probe(file.canonicalPath)
+        val probe = ffprobe.probe(files.getQueueVideo(videoId).canonicalPath)
         val durationNs = probe.format.duration * TimeUnit.SECONDS.toNanos(1)
 
         val builder = FFmpegBuilder()
@@ -53,7 +54,6 @@ class VideoConverter(
             dao.updateVideoProgress(videoId, ((progress.out_time_ns / durationNs) * 100).toInt(), progress.speed)
         }.run()
 
-        dao.setVideoProcessed(videoId, resultFile.length())
         return resultFile
     }
 }

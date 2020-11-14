@@ -13,9 +13,9 @@ import rs.lukaj.compressor.controller.FILE_NAME_HEADER
 import rs.lukaj.compressor.controller.MASTER_KEY_HEADER
 import rs.lukaj.compressor.controller.RETURN_URL_HEADER
 import rs.lukaj.compressor.controller.VIDEO_ID_HEADER
+import rs.lukaj.compressor.dao.VideoDao
 import rs.lukaj.compressor.dto.QueueSizeResponse
 import rs.lukaj.compressor.util.addTrailingSlash
-import java.io.File
 import java.io.OutputStream
 import java.net.http.HttpTimeoutException
 import java.time.Duration
@@ -24,16 +24,18 @@ import java.util.*
 
 @Service
 class WorkerGateway(
-    @Autowired private val properties: EnvironmentProperties
+    @Autowired private val properties: EnvironmentProperties,
+    @Autowired private val videoDao: VideoDao,
+    @Autowired private val files : FileService
 ) {
     private val logger = KotlinLogging.logger {}
     private val client = WebClient.create()
 
-    fun sendResultToMaster(originId: UUID, video: File, returnUrl: String) {
+    fun sendResultToMaster(originId: UUID, returnUrl: String) {
         val response = client.post()
                 .uri(returnUrl)
                 .header(VIDEO_ID_HEADER, originId.toString())
-                .body(video.outputStream(), OutputStream::class.java)
+                .body(files.getResultVideo(originId).outputStream(), OutputStream::class.java)
                 .exchange()
                 .retryWhen(Retry.backoff(properties.getSubmitWorkToMasterRetryAttempts(),
                         Duration.ofSeconds(properties.getSubmitWorkToMasterMinBackoff())))
@@ -50,14 +52,14 @@ class WorkerGateway(
         }
     }
 
-    fun sendWorkToWorker(host: String, filename: String, videoId: UUID, file: File) {
+    fun sendWorkToWorker(host: String, videoId: UUID) {
         val response = client.post()
                 .uri(host.addTrailingSlash() + "worker/")
                 .header(MASTER_KEY_HEADER, properties.getMyMasterKey())
-                .header(FILE_NAME_HEADER, filename)
+                .header(FILE_NAME_HEADER, videoDao.getVideo(videoId).orElseThrow().name)
                 .header(VIDEO_ID_HEADER, videoId.toString())
                 .header(RETURN_URL_HEADER, properties.getHostUrl().addTrailingSlash() + "worker/accept")
-                .body(file.outputStream(), OutputStream::class.java)
+                .body(files.getQueueVideo(videoId).outputStream(), OutputStream::class.java)
                 .exchange()
                 .retryWhen(Retry.backoff(properties.getSendWorkToWorkerTimeoutRetryAttempts(),
                         Duration.ofSeconds(properties.getSendWorkToWorkerTimeoutMinBackoff())))

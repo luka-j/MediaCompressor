@@ -6,14 +6,15 @@ import org.springframework.scheduling.annotation.Scheduled
 import org.springframework.stereotype.Service
 import rs.lukaj.compressor.configuration.EnvironmentProperties
 import rs.lukaj.compressor.dao.VideoDao
+import rs.lukaj.compressor.service.FileService
 import rs.lukaj.compressor.util.Utils
-import java.io.File
 
 @Service
 class FileCleanup(
         @Autowired private val dao: VideoDao,
         @Autowired private val utils : Utils,
-        @Autowired private val properties: EnvironmentProperties
+        @Autowired private val properties: EnvironmentProperties,
+        @Autowired private val files: FileService
 ) {
     private val logger = KotlinLogging.logger {}
 
@@ -28,8 +29,7 @@ class FileCleanup(
         }
 
         for(video in videos) {
-            val file = File(properties.getVideoTargetLocation(), video.name)
-            if(!file.delete()) logger.error { "Failed to delete ${file.canonicalPath} (claimed and too old)" }
+            files.deleteResultVideo(video.id!!, "claimed and too old", "ERROR")
             dao.setVideoDeleted(video)
         }
 
@@ -49,8 +49,7 @@ class FileCleanup(
         for(video in videos) {
             logger.info { "Removing unclaimed file ${video.name} (id ${video.id}), meant for ${video.email}. " +
                     "Processed at ${video.updatedAt}, but not yet claimed." }
-            val file = File(properties.getVideoTargetLocation(), video.name)
-            if(!file.delete()) logger.error { "Failed to delete ${file.canonicalPath} (unclaimed but too old)" }
+            files.deleteResultVideo(video.id!!, "unclaimed but too old", "ERROR")
             dao.setVideoDeletedWithoutDownloading(video)
         }
 

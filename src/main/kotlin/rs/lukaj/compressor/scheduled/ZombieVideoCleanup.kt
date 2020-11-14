@@ -7,9 +7,9 @@ import org.springframework.stereotype.Service
 import rs.lukaj.compressor.configuration.EnvironmentProperties
 import rs.lukaj.compressor.dao.VideoDao
 import rs.lukaj.compressor.model.VideoStatus
+import rs.lukaj.compressor.service.FileService
 import rs.lukaj.compressor.service.VideoCrudService
 import rs.lukaj.compressor.util.Utils
-import java.io.File
 import java.time.LocalDateTime
 
 @Service
@@ -17,7 +17,8 @@ class ZombieVideoCleanup(
         @Autowired private val dao: VideoDao,
         @Autowired private val utils : Utils,
         @Autowired private val properties: EnvironmentProperties,
-        @Autowired private val service: VideoCrudService
+        @Autowired private val service: VideoCrudService,
+        @Autowired private val files: FileService
 ) {
     private val logger = KotlinLogging.logger {}
 
@@ -29,8 +30,8 @@ class ZombieVideoCleanup(
         val zombies = dao.getOldErrorZombieVideos()
         for(video in zombies) {
             logger.info { "Removing zombie (ERROR) ${video.id} (${video.name})" }
-            File(properties.getVideoQueueLocation(), video.name).delete()
-            File(properties.getVideoTargetLocation(), video.name).delete()
+            files.deleteQueueVideo(video.id!!, "marked as ERROR in database", "DEBUG")
+            files.deleteResultVideo(video.id!!, "marked as ERROR in database", "DEBUG")
         }
     }
 

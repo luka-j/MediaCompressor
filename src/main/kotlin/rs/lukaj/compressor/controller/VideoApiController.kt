@@ -39,7 +39,7 @@ class VideoApiController(
     fun downloadVideo(@PathVariable("videoId") videoId: UUID, response: HttpServletResponse) {
         logger.info { "Received request to download file $videoId" }
         val video = service.getVideo(videoId)
-        response.setHeader("Content-Disposition", "attachment")
+        response.setHeader("Content-Disposition", "attachment; filename=\"${video.name}\"")
         video.inputStream().copyTo(response.outputStream, 131072) //this is the only way I found to send raw response
         response.status = 200
     }
