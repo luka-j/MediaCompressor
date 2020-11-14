@@ -35,6 +35,9 @@
     </style>
     <script>
         function postFile() {
+            const button = $('button')[0]
+            button.disabled = true
+
             const successMsg = $('#success-message')[0]
             const errorMsg = $('#error-message')[0]
             successMsg.style.display = 'none'
@@ -42,6 +45,7 @@
 
             const fileInput = $('#fileInput')[0]
             const progressBar = $('#progressBar')
+
             let request = new XMLHttpRequest();
 
             request.upload.addEventListener('progress', function (e) {
@@ -61,6 +65,8 @@
             request.open('post', '/video/');
 
             request.onreadystatechange = function() {
+                button.disabled = false
+
                 if (request.readyState === XMLHttpRequest.DONE) {
                     if(request.status === 200) {
                         successMsg.style.display = 'block';
