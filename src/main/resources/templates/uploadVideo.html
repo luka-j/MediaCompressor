@@ -32,11 +32,14 @@
         #error-message {
             color: darkred;
         }
+        #gh-notice {
+            display: inline-block;
+            margin-top: 2em;
+        }
     </style>
     <script>
         function postFile() {
             const button = $('button')[0]
-            button.disabled = true
 
             const successMsg = $('#success-message')[0]
             const errorMsg = $('#error-message')[0]
@@ -44,7 +47,17 @@
             errorMsg.style.display = 'none'
 
             const fileInput = $('#fileInput')[0]
+            const emailInput = $('#email')[0]
             const progressBar = $('#progressBar')
+
+            button.disabled = true
+            if(fileInput.files[0] === undefined || emailInput.value === undefined ||
+                    emailInput == ""  || emailInput.validationMessage != "") {
+                errorMsg.innerHTML = "Fields not filled properly!"
+                errorMsg.style.display = 'block'
+                button.disabled = false
+                return
+            }
 
             let request = new XMLHttpRequest();
 
@@ -79,10 +92,9 @@
                     progressBar[0].setAttribute('aria-valuenow', '0');
                 }
             }
-            request.setRequestHeader("User-Email", $('#email')[0].value);
+            request.setRequestHeader("User-Email", emailInput.value);
             request.setRequestHeader("File-Name", fileInput.files[0].name);
             request.send(fileInput.files[0]);
-
         }
     </script>
 </head>
@@ -92,7 +104,7 @@
     <form>
         <div class="form-group">
             <label for="email">E-mail</label>
-            <input id="email" type="text" class="form-control">
+            <input id="email" type="email" class="form-control">
         </div>
         <input id="fileInput" type="file" class="form-control-file" accept="video/*" />
         <div class="progress">
@@ -114,7 +126,10 @@
         </div>
     </form>
 
-    <!-- todo add a link to source (GitHub) -->
+
+    <small id="gh-notice">
+        Complete source is available on <a href="https://github.com/luka-j/MediaCompressor" target="_blank">GitHub</a>
+    </small>
 </div>
 
 
