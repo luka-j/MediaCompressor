@@ -29,7 +29,7 @@ class EnvironmentProperties {
 
     fun getSendgridApiKey() = getProperty("sendgrid.apikey", "").nullIf("")
     fun getMailSendingAddress() = getProperty("sendgrid.from", "compressor@luka-j.rocks")
-    fun getHostUrl() = getProperty("host.url", "https://compressor.luka-j.rocks")
+    fun getHostUrl() = getProperty("host.url", "").nullIf("")
 
     fun getExecutorType() = getProperty("executor.strategy", "single")
     fun getSecondaryExecutorType() = getProperty("executor2.strategy", "cached")
@@ -46,20 +46,20 @@ class EnvironmentProperties {
     fun getInQueueVideosCleanupTimeThreshold() = getProperty("cleanup.zombie.inqueue.time", "1440").toLong()
 
     fun isWorkerModeEnabled() = getProperty("worker.enabled", "true").toBoolean()
-    fun getAllowedMasterHosts() = getProperty("worker.masters", "").split(",").collapseIfEmpty()
-    fun getAvailableWorkers() : List<Pair<String, Double>> = getProperty("workers.available", "").split(",")
+    fun getAllowedMasterHosts() = getProperty("worker.masters", "").split(";").collapseIfEmpty()
+    fun getAvailableWorkers() : List<Pair<String, Double>> = getProperty("workers.available", "").split(";")
             .collapseIfEmpty().map { wrk ->
-                val tokens = wrk.split(":")
+                val tokens = wrk.split(",")
                 if(tokens.size == 1) Pair(tokens[0], 1.0)
                 else Pair(tokens[0], tokens[1].toDouble())
             }
     fun getDownPingsThresholdToDeclareDead() = getProperty("worker.downpings.threshold", "3").toInt()
     fun getMyMasterKey() = getProperty("master.key", "").nullIf("")
-    fun getSubmitWorkToMasterTimeout() = getProperty("worker.submit.timeout", "1800").toLong()
-    fun getSubmitWorkToMasterRetryAttempts() = getProperty("worker.submit.retries", "5").toLong()
+    fun getSubmitWorkToMasterTimeout() = getProperty("worker.submit.timeout", "10000").toInt()
+    fun getSubmitWorkToMasterRetryAttempts() = getProperty("worker.submit.retries", "5").toInt()
     fun getSubmitWorkToMasterMinBackoff() = getProperty("worker.submit.retry.minbackoff", "10").toLong()
-    fun getSendWorkToWorkerTimeout() = getProperty("master.send.timeout", "1200").toLong()
-    fun getSendWorkToWorkerTimeoutRetryAttempts() = getProperty("master.send.retries", "3").toLong()
+    fun getSendWorkToWorkerTimeout() = getProperty("master.send.timeout", "1200").toInt()
+    fun getSendWorkToWorkerTimeoutRetryAttempts() = getProperty("master.send.retries", "3").toInt()
     fun getSendWorkToWorkerTimeoutMinBackoff() = getProperty("master.send.retry.minbackoff", "5").toLong()
     fun getWorkerPingTimeout() = getProperty("worker.ping.timeout", "5").toLong()
     fun getQueueStatusRequestTimeout() = getProperty("worker.status.timeout", "5").toLong()

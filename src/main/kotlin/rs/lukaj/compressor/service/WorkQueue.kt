@@ -12,6 +12,7 @@ import rs.lukaj.compressor.util.QueueFull
 import rs.lukaj.compressor.util.Utils
 import java.util.*
 import java.util.concurrent.ConcurrentLinkedDeque
+import java.util.concurrent.locks.ReentrantLock
 
 @Service
 class WorkQueue(
@@ -25,7 +26,7 @@ class WorkQueue(
 ) {
     private val logger = KotlinLogging.logger {}
 
-    private val lock = Any()
+    private val lock = ReentrantLock()
     private val mainExecutor = utils.getExecutor(properties.getExecutorType())
     private val shortTasksExecutor = utils.getExecutor(properties.getSecondaryExecutorType())
 
@@ -44,23 +45,32 @@ class WorkQueue(
     }
 
     fun nextJob(onJobFailed: (UUID)->Unit, bypassSizeCheck: Boolean = false) {
-        synchronized(lock) {
+        lock.lock()
+        try {
             val job = queue.peek()
             if (job == null) return
             else {
                 execute(job, bypassSizeCheck, onJobFailed)
             }
+        } catch (e: Exception) {
+            if(lock.isHeldByCurrentThread) {
+                lock.unlock()
+            }
+            throw e
         }
     }
 
     //call this when a new worker comes alive, to assign new work to it
     fun resetQueue(onJobFailed: (UUID) -> Unit) {
-        synchronized(lock) { //this potentially locks queue for a while
+        lock.lock()
+        try {
             val queueSize = queue.size
             for(i in 1..queueSize) {
                 val top = queue.pop()
                 addToQueue(top, onJobFailed)
             }
+        } finally {
+            lock.unlock()
         }
     }
 
@@ -85,7 +95,7 @@ class WorkQueue(
                     workerDao.setWorkerQueueSize(workerEntity, status.size)
                     if (status.isDiskFull) continue
                     if (status.size >= status.maxSize) continue
-                    eligibleNodes.add(Pair(host, status.size * efficiency))
+                    eligibleNodes.add(Pair(host, status.size * 1/efficiency))
                 } catch (e: Exception) {
                     logger.info { "Got ${e.javaClass.name}: ${e.message} while fetching worker status, not sending work to it" }
                     continue
@@ -93,17 +103,16 @@ class WorkQueue(
             }
         }
 
-        synchronized(lock) {
-            for(node in eligibleNodes) {
-                try {
-                    return if(node.first == NODE_LOCAL) executeLocally(job, bypassSizeCheck, onJobFailed)
-                    else executeRemotely(job, node.first)
-                } catch (e: Exception) {
-                    logger.warn { "Exception occurred attempting to execute ${job.videoId} on ${node.first}. Moving on..." }
-                }
+        for(node in eligibleNodes) {
+            try {
+                return if(node.first == NODE_LOCAL) executeLocally(job, bypassSizeCheck, onJobFailed)
+                else executeRemotely(job, node.first)
+            } catch (e: Exception) {
+                logger.warn { "Exception occurred attempting to execute ${job.videoId} on ${node.first}. Moving on..." }
             }
         }
 
+        lock.unlock()
         logger.warn { "No available workers for job ${job.videoId}. Rejecting." }
         dao.setVideoRejected(job.videoId)
         files.deleteQueueVideo(job.videoId, "rejected job")
@@ -111,35 +120,35 @@ class WorkQueue(
     }
 
     private fun executeLocally(job: Job, bypassSizeCheck: Boolean, onJobFailed: (UUID)->Unit) {
-        synchronized(lock) {
-            if(!bypassSizeCheck) ensureQueueCanAcceptNewVideo()
-            if (jobsExecuting < properties.getMaxConcurrentLocalJobs()) {
-                jobsExecuting++
-                val nextJob = queue.pop()
-                dao.setVideoInQueue(nextJob.videoId)
-                mainExecutor.execute {
-                    try {
-                        dao.setVideoProcessing(nextJob.videoId, NODE_LOCAL)
-                        converter.reencode(nextJob.videoId)
-                        shortTasksExecutor.execute(nextJob.finalizedBy)
-                    } catch (e: Exception) {
-                        logger.error(e) { "Unexpected exception occurred while executing reencode job; failing video ${job.videoId}" }
-                        onJobFailed(nextJob.videoId)
-                    }
-                    jobsExecuting--
-                    nextJob(onJobFailed)
+        if(!bypassSizeCheck) ensureQueueCanAcceptNewVideo()
+        if (jobsExecuting < properties.getMaxConcurrentLocalJobs()) {
+            jobsExecuting++
+            val nextJob = queue.pop()
+            dao.setVideoInQueue(nextJob.videoId)
+            mainExecutor.execute {
+                try {
+                    dao.setVideoProcessing(nextJob.videoId, NODE_LOCAL)
+                    converter.reencode(nextJob.videoId)
+                    shortTasksExecutor.execute(nextJob.finalizedBy)
+                } catch (e: Exception) {
+                    logger.error(e) { "Unexpected exception occurred while executing reencode job; failing video ${job.videoId}" }
+                    onJobFailed(nextJob.videoId)
                 }
+                jobsExecuting--
+                nextJob(onJobFailed)
             }
         }
+        lock.unlock()
     }
 
     private fun executeRemotely(job: Job, worker: String) {
-        if(properties.getMyMasterKey() == null) {
+        if(properties.getMyMasterKey() == null || properties.getHostUrl() == null) {
             logger.error { "Attempted to send job to worker, but this instance doesn't have master key set! Add master key to config." }
             throw RemoteExecutionInvocationException("Cannot execute job remotely without master key!")
         }
         workerService.sendWorkToWorker(worker, job.videoId)
         queue.pop() //pop job only after we're sure execution has started
+        lock.unlock()
         dao.setVideoProcessing(job.videoId, NODE_LOCAL)
     }
 

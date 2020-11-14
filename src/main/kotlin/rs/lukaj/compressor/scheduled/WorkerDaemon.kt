@@ -25,7 +25,7 @@ class WorkerDaemon(
 
     private val maybeDownWorkers = HashSet<String>()
 
-    @Scheduled(fixedDelay = 60_000)
+    @Scheduled(fixedDelay = 60_000, initialDelay = 0)
     fun pingWorkers() {
         val workerHosts = properties.getAvailableWorkers()
         var newWorkersAreUp = false

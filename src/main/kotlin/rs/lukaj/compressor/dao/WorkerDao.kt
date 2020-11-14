@@ -6,6 +6,7 @@ import rs.lukaj.compressor.model.Worker
 import rs.lukaj.compressor.model.WorkerRepository
 import rs.lukaj.compressor.model.WorkerStatus
 import java.time.LocalDateTime
+import java.time.ZoneOffset
 
 @Service
 class WorkerDao(
@@ -13,7 +14,8 @@ class WorkerDao(
 ) {
     fun getOrCreateWorker(host: String) : Worker {
         return repository.findByHostEquals(host).orElseGet {
-            val worker = Worker(null, host, WorkerStatus.DOWN, 0, LocalDateTime.MIN, 0)
+            val worker = Worker(null, host, WorkerStatus.DOWN, 0,
+                    LocalDateTime.ofEpochSecond(0, 0, ZoneOffset.UTC), 0)
             repository.save(worker)
         }
     }

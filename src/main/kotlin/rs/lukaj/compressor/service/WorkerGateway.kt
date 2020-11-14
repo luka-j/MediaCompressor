@@ -1,13 +1,20 @@
 package rs.lukaj.compressor.service
 
 import mu.KotlinLogging
+import org.apache.http.HttpException
+import org.apache.http.HttpHost
+import org.apache.http.client.config.RequestConfig
+import org.apache.http.client.methods.HttpPost
+import org.apache.http.entity.FileEntity
+import org.apache.http.impl.client.CloseableHttpClient
+import org.apache.http.impl.client.DefaultHttpRequestRetryHandler
+import org.apache.http.impl.client.HttpClientBuilder
 import org.springframework.beans.factory.annotation.Autowired
 import org.springframework.http.HttpStatus
 import org.springframework.stereotype.Service
 import org.springframework.web.client.HttpServerErrorException
 import org.springframework.web.reactive.function.BodyExtractors
 import org.springframework.web.reactive.function.client.WebClient
-import reactor.util.retry.Retry
 import rs.lukaj.compressor.configuration.EnvironmentProperties
 import rs.lukaj.compressor.controller.FILE_NAME_HEADER
 import rs.lukaj.compressor.controller.MASTER_KEY_HEADER
@@ -16,8 +23,7 @@ import rs.lukaj.compressor.controller.VIDEO_ID_HEADER
 import rs.lukaj.compressor.dao.VideoDao
 import rs.lukaj.compressor.dto.QueueSizeResponse
 import rs.lukaj.compressor.util.addTrailingSlash
-import java.io.OutputStream
-import java.net.http.HttpTimeoutException
+import java.net.URL
 import java.time.Duration
 import java.util.*
 
@@ -32,47 +38,43 @@ class WorkerGateway(
     private val client = WebClient.create()
 
     fun sendResultToMaster(originId: UUID, returnUrl: String) {
-        val response = client.post()
-                .uri(returnUrl)
-                .header(VIDEO_ID_HEADER, originId.toString())
-                .body(files.getResultVideo(originId).outputStream(), OutputStream::class.java)
-                .exchange()
-                .retryWhen(Retry.backoff(properties.getSubmitWorkToMasterRetryAttempts(),
-                        Duration.ofSeconds(properties.getSubmitWorkToMasterMinBackoff())))
-                .blockOptional(Duration.ofSeconds(properties.getSubmitWorkToMasterTimeout()))
-                .orElseThrow {
-                    logger.error { "Error occurred while submitting work to master!" }
-                    HttpTimeoutException("Request timed out or retried too many times!")
+        val apacheClient = buildApacheClient(properties.getSubmitWorkToMasterRetryAttempts(),
+                properties.getSubmitWorkToMasterTimeout())
+        val request = HttpPost(returnUrl)
+        request.addHeader(VIDEO_ID_HEADER, originId.toString())
+        request.entity = FileEntity(files.getResultVideo(originId))
+        val hostUrl = URL(returnUrl)
+        apacheClient.execute(HttpHost.create(hostUrl.protocol + "://" + hostUrl.host + ":" + hostUrl.port), request) { response ->
+            if (response.statusLine.statusCode != 200) {
+                logger.error {
+                    "Error occurred while submitting work to master! Got code ${response.statusLine.statusCode} " +
+                            "and body: " + String(response.entity.content.readNBytes(1024))
                 }
-
-        if(response.statusCode() != HttpStatus.OK) {
-            logger.error { "Error occurred while submitting work to master! Got code ${response.statusCode()} and body: " +
-                    "${response.bodyToMono(String::class.java).block(Duration.ofSeconds(4))}" }
-            throw HttpServerErrorException(response.statusCode(), "Error while submitting work to master!")
+                throw HttpException("Error while submitting work to master!")
+            }
         }
+        apacheClient.close()
     }
 
     fun sendWorkToWorker(host: String, videoId: UUID) {
-        val response = client.post()
-                .uri(host.addTrailingSlash() + "worker/")
-                .header(MASTER_KEY_HEADER, properties.getMyMasterKey())
-                .header(FILE_NAME_HEADER, videoDao.getVideo(videoId).orElseThrow().name)
-                .header(VIDEO_ID_HEADER, videoId.toString())
-                .header(RETURN_URL_HEADER, properties.getHostUrl().addTrailingSlash() + "worker/accept")
-                .body(files.getQueueVideo(videoId).outputStream(), OutputStream::class.java)
-                .exchange()
-                .retryWhen(Retry.backoff(properties.getSendWorkToWorkerTimeoutRetryAttempts(),
-                        Duration.ofSeconds(properties.getSendWorkToWorkerTimeoutMinBackoff())))
-                .blockOptional(Duration.ofSeconds(properties.getSendWorkToWorkerTimeout()))
-                .orElseThrow {
-                    logger.error { "Error occurred while sending work to worker!" }
-                    HttpTimeoutException("Request timed out or retried too many times!")
+        val apacheClient = buildApacheClient(properties.getSendWorkToWorkerTimeoutRetryAttempts(),
+                properties.getSendWorkToWorkerTimeout())
+        val request = HttpPost(host.addTrailingSlash() + "worker/")
+        request.addHeader(MASTER_KEY_HEADER, properties.getMyMasterKey())
+        request.addHeader(FILE_NAME_HEADER, videoDao.getVideo(videoId).orElseThrow().name)
+        request.addHeader(VIDEO_ID_HEADER, videoId.toString())
+        request.addHeader(RETURN_URL_HEADER, properties.getHostUrl().addTrailingSlash() + "worker/accept")
+        request.entity = FileEntity(files.getQueueVideo(videoId))
+        apacheClient.execute(HttpHost.create(host), request) { response ->
+            if (response.statusLine.statusCode != 200) {
+                logger.error {
+                    "Error occurred while sending work to worker! Got code ${response.statusLine.statusCode} " +
+                            "and body: " + String(response.entity.content.readNBytes(1024))
                 }
-        if(response.statusCode() != HttpStatus.ACCEPTED) {
-            logger.error { "Error occurred while sending work to worker! Got code ${response.statusCode()} and body: " +
-                    "${response.bodyToMono(String::class.java).block(Duration.ofSeconds(4))}" }
-            throw HttpServerErrorException(response.statusCode(), "Error while sending work to worker!")
+                throw HttpException("Error while sending work to worker!")
+            }
         }
+        apacheClient.close()
     }
 
     fun ping(host: String) : Boolean {
@@ -126,5 +128,14 @@ class WorkerGateway(
                     HttpServerErrorException(HttpStatus.INTERNAL_SERVER_ERROR)
                 }
                 .statusCode() == HttpStatus.OK
+    }
+
+
+    private fun buildApacheClient(retries: Int, timeout: Int) : CloseableHttpClient {
+        return HttpClientBuilder.create()
+                .setRetryHandler(DefaultHttpRequestRetryHandler(retries, true))
+                .setDefaultRequestConfig(RequestConfig.custom().setSocketTimeout(timeout)
+                        .setConnectTimeout(timeout).build())
+                .build()
     }
 }
