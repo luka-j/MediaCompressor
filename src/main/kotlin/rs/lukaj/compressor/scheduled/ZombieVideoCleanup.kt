@@ -53,8 +53,7 @@ class ZombieVideoCleanup(
                 if(!emailPendingCleared.contains(video.email)) {
                     service.sendMailNotification(video.email)
                     emailPendingCleared.add(video.email)
-                }
-                //else nothing - this video is READY and updatedAt is set to now when previous notification was sent
+                } //else nothing - this video is READY and updatedAt is set to now when previous notification was sent
                 //the only reason we caught it here is because zombies list is not updated to reflect changes that
                 //happened in service.sendMailNotification(String)
             } else if (video.status != VideoStatus.IN_QUEUE || video.updatedAt!!.isBefore(

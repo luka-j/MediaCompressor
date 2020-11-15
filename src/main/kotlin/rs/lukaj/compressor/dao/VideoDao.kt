@@ -17,7 +17,7 @@ val IN_QUEUE_STATES = listOf(VideoStatus.UPLOADING, VideoStatus.UPLOADED, VideoS
 //states which should quickly be changed; not something that should last long
 private val TRANSITIVE_STATES = listOf(VideoStatus.UPLOADED, VideoStatus.PROCESSED)
 //not including ERROR here  vvv  on purpose
-private val FINAL_STATES = listOf(VideoStatus.REJECTED, VideoStatus.DELETED, VideoStatus.DELETED_WITHOUT_DOWNLOADING)
+private val FINAL_STATES = listOf(VideoStatus.REJECTED, VideoStatus.DELETED, VideoStatus.DELETED_WITHOUT_DOWNLOADING, VideoStatus.ERROR)
 const val NODE_LOCAL = "localhost"
 
 @Service
