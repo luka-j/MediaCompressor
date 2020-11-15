@@ -14,6 +14,7 @@ interface VideoRepository : JpaRepository<Video, UUID> {
     fun countAllByStatusIn(statuses: Collection<VideoStatus>) : Int
     fun countAllByStatusInAndEmailEquals(statuses: Collection<VideoStatus>, email: String) : Int
     fun findAllByStatusInAndEmailEquals(statuses: Collection<VideoStatus>, email: String) : List<Video>
+    fun findAllByStatusNotInAndEmailEquals(statuses: Collection<VideoStatus>, email: String) : List<Video>
 
     fun findAllByStatusEqualsAndUpdatedAtBefore(status: VideoStatus, lastUpdate: LocalDateTime) : List<Video>
     fun findAllByStatusInAndUpdatedAtBefore(statuses: Collection<VideoStatus>, lastUpdate: LocalDateTime) : List<Video>

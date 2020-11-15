@@ -8,6 +8,7 @@ import org.springframework.http.ResponseEntity
 import org.springframework.stereotype.Controller
 import org.springframework.web.bind.annotation.*
 import rs.lukaj.compressor.configuration.EnvironmentProperties
+import rs.lukaj.compressor.model.Video
 import rs.lukaj.compressor.service.FileService
 import rs.lukaj.compressor.service.VideoService
 import rs.lukaj.compressor.util.EntityNotFound
@@ -69,5 +70,12 @@ class VideoApiController(
             lastQueueFullResponse = Pair(now, HttpStatus.OK)
             ResponseEntity.ok().build()
         }
+    }
+
+    //this is not exactly safe - anyone could snoop for emails. but then again, this is not the next facebook
+    //and I have tiny disk space, so old videos will probably get deleted not long after, returning nothing here
+    @GetMapping("/status")
+    fun getVideosStatus(@RequestParam("user") email: String) : ResponseEntity<List<Video>> {
+        return ResponseEntity.ok(service.getVideosForUser(email))
     }
 }

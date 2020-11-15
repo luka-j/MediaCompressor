@@ -89,6 +89,7 @@ class VideoDao(
 
     fun getAllPendingVideosForUser(email: String) =
             repository.findAllByStatusInAndEmailEquals(listOf(VideoStatus.EMAIL_PENDING, VideoStatus.PROCESSED), email)
+    fun getAllVideosForUser(email: String) = repository.findAllByStatusNotInAndEmailEquals(FINAL_STATES, email)
 
     fun getVideo(id: UUID) : Optional<Video> = repository.findById(id)
 

@@ -85,6 +85,7 @@ class VideoService(
     fun getVideo(id: UUID) : Optional<Video> {
         return dao.getVideo(id)
     }
+    fun getVideosForUser(email: String) : List<Video> = dao.getAllVideosForUser(email)
 
     fun downloadVideo(video: Video) : File {
         if(video.status != VideoStatus.READY && video.status != VideoStatus.DOWNLOADED) {
