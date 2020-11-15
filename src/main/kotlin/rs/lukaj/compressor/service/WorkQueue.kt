@@ -45,10 +45,14 @@ class WorkQueue(
     }
 
     fun nextJob(onJobFailed: (UUID)->Unit, bypassSizeCheck: Boolean = false) {
+        logger.info { "Advancing queue by a single job. Lock isLocked: ${lock.isLocked}" }
         lock.lock()
         try {
             val job = queue.peek()
-            if (job == null) return
+            if (job == null) {
+                lock.unlock()
+                return
+            }
             else {
                 execute(job, bypassSizeCheck, onJobFailed)
             }

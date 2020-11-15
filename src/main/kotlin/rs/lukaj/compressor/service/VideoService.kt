@@ -129,7 +129,7 @@ class VideoService(
         mailService.sendMail("An error occurred while processing your video.", "An error occurred while " +
                 "processing your video ${video.name}. This is the id: ${video.id}, so drop me a message. Sorry :/",
                 false, Email(video.email))
-        if(dao.getQueueSizeForEmail(video.email) > 0) {
+        if(dao.getAllPendingVideosForUser(video.email).isNotEmpty()) {
             logger.info { "There are some pending videos for user ${video.email}. Sending notifications..." }
             sendMailNotification(video.email)
         }
