@@ -8,7 +8,7 @@ import org.springframework.stereotype.Controller
 import org.springframework.web.bind.annotation.*
 import rs.lukaj.compressor.configuration.EnvironmentProperties
 import rs.lukaj.compressor.dto.QueueSizeResponse
-import rs.lukaj.compressor.service.VideoCrudService
+import rs.lukaj.compressor.service.VideoService
 import rs.lukaj.compressor.util.EntityNotFound
 import rs.lukaj.compressor.util.MasterNotAuthorized
 import rs.lukaj.compressor.util.Utils
@@ -24,7 +24,7 @@ const val RETURN_URL_HEADER = "Return-Url"
 @Controller
 @RequestMapping("/worker")
 class WorkerActionsController(
-        @Autowired val service: VideoCrudService,
+        @Autowired val service: VideoService,
         @Autowired val properties: EnvironmentProperties,
         @Autowired val utils: Utils
 ) {

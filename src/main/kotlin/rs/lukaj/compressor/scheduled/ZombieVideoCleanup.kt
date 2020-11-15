@@ -8,7 +8,7 @@ import rs.lukaj.compressor.configuration.EnvironmentProperties
 import rs.lukaj.compressor.dao.VideoDao
 import rs.lukaj.compressor.model.VideoStatus
 import rs.lukaj.compressor.service.FileService
-import rs.lukaj.compressor.service.VideoCrudService
+import rs.lukaj.compressor.service.VideoService
 import rs.lukaj.compressor.util.Utils
 import java.time.LocalDateTime
 
@@ -17,7 +17,7 @@ class ZombieVideoCleanup(
         @Autowired private val dao: VideoDao,
         @Autowired private val utils : Utils,
         @Autowired private val properties: EnvironmentProperties,
-        @Autowired private val service: VideoCrudService,
+        @Autowired private val service: VideoService,
         @Autowired private val files: FileService
 ) {
     private val logger = KotlinLogging.logger {}

@@ -19,7 +19,7 @@ import java.io.InputStream
 import java.util.*
 
 @Service
-class VideoCrudService(
+class VideoService(
         @Autowired private val properties: EnvironmentProperties,
         @Autowired private val dao: VideoDao,
         @Autowired private val utils: Utils,
@@ -82,14 +82,17 @@ class VideoCrudService(
         dao.getVideosProcessingOnNode(node).forEach { video -> reassignVideo(video) }
     }
 
-    fun getVideo(id: UUID) : File {
-        val video = dao.getVideo(id).orElseThrow { EntityNotFound("Video with id $id not found.") }
+    fun getVideo(id: UUID) : Optional<Video> {
+        return dao.getVideo(id)
+    }
+
+    fun downloadVideo(video: Video) : File {
         if(video.status != VideoStatus.READY && video.status != VideoStatus.DOWNLOADED) {
             throw InvalidStatus("Video not available: currently ${video.status}")
         }
 
-        dao.setVideoDownloaded(id)
-        return files.getResultVideo(id)
+        dao.setVideoDownloaded(video)
+        return files.getResultVideo(video.id!!)
     }
 
     fun videoExists(id: UUID) : Boolean = dao.getVideo(id).isPresent

@@ -37,4 +37,13 @@ class Utils(@Autowired private val properties : EnvironmentProperties) {
 
 fun String.nullIf(other: String) : String? = if(this == other) null else this
 fun String.addTrailingSlash() = if(this.endsWith('/')) this else "$this/"
+fun String.replaceFileExtension(newExtension: String) : String {
+    if(this.endsWith(".$newExtension")) return this
+    val lastPeriod = this.lastIndexOf('.')
+    return if(lastPeriod == 1 || lastPeriod < this.length - 5) {
+        "$this.$newExtension"
+    } else {
+        this.substring(0..lastPeriod) + newExtension
+    }
+}
 fun List<String>.collapseIfEmpty() : List<String> = if(this.size == 1 && this[0] == "") listOf() else this

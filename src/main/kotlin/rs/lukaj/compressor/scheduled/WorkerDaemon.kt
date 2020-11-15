@@ -8,7 +8,7 @@ import rs.lukaj.compressor.configuration.EnvironmentProperties
 import rs.lukaj.compressor.dao.VideoDao
 import rs.lukaj.compressor.dao.WorkerDao
 import rs.lukaj.compressor.model.WorkerStatus
-import rs.lukaj.compressor.service.VideoCrudService
+import rs.lukaj.compressor.service.VideoService
 import rs.lukaj.compressor.service.WorkQueue
 import rs.lukaj.compressor.service.WorkerGateway
 
@@ -18,7 +18,7 @@ class WorkerDaemon(
         @Autowired private val dao : WorkerDao,
         @Autowired private val workerService: WorkerGateway,
         @Autowired private val queue: WorkQueue,
-        @Autowired private val videoService: VideoCrudService,
+        @Autowired private val videoService: VideoService,
         @Autowired private val videoDao: VideoDao
 ) {
     private val logger = KotlinLogging.logger {}
@@ -79,6 +79,7 @@ class WorkerDaemon(
 
             if(!isVideoInQueue) {
                 logger.warn { "Video ${video.id} (${video.name}) not found in queue of ${video.node}! Readding to queue." }
+                dao.setWorkerStatus(dao.getOrCreateWorker(video.node), WorkerStatus.DOWN)
                 videoService.reassignVideo(video)
             }
         }

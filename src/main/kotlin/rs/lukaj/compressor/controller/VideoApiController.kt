@@ -8,7 +8,10 @@ import org.springframework.http.ResponseEntity
 import org.springframework.stereotype.Controller
 import org.springframework.web.bind.annotation.*
 import rs.lukaj.compressor.configuration.EnvironmentProperties
-import rs.lukaj.compressor.service.VideoCrudService
+import rs.lukaj.compressor.service.FileService
+import rs.lukaj.compressor.service.VideoService
+import rs.lukaj.compressor.util.EntityNotFound
+import rs.lukaj.compressor.util.replaceFileExtension
 import java.time.LocalDateTime
 import java.util.*
 import javax.servlet.http.HttpServletRequest
@@ -19,8 +22,9 @@ const val FILE_SIZE_HEADER = "File-Size"
 @Controller
 @RequestMapping("/video")
 class VideoApiController(
-        @Autowired val service: VideoCrudService,
-        @Autowired val properties: EnvironmentProperties
+        @Autowired val service: VideoService,
+        @Autowired val properties: EnvironmentProperties,
+        @Autowired val files : FileService
 ) {
 
     private val logger = KotlinLogging.logger {}
@@ -38,9 +42,11 @@ class VideoApiController(
     @GetMapping("/{videoId}", produces = [MediaType.APPLICATION_OCTET_STREAM_VALUE])
     fun downloadVideo(@PathVariable("videoId") videoId: UUID, response: HttpServletResponse) {
         logger.info { "Received request to download file $videoId" }
-        val video = service.getVideo(videoId)
-        response.setHeader("Content-Disposition", "attachment; filename=\"${video.name}\"")
-        video.inputStream().copyTo(response.outputStream, 131072) //this is the only way I found to send raw response
+        val video = service.getVideo(videoId).orElseThrow {EntityNotFound("Video with id $videoId doesn't exist!")}
+        //this is the only way I found to send raw response
+        response.setHeader("Content-Disposition", "attachment; " +
+                "filename=\"${video.name.replaceFileExtension(properties.getVideoExtension())}\"")
+        files.getResultVideo(video.id!!).inputStream().copyTo(response.outputStream, 131072)
         response.status = 200
     }
 

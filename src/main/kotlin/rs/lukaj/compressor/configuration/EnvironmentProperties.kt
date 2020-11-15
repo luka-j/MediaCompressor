@@ -19,6 +19,7 @@ class EnvironmentProperties {
 
     fun getVideoTargetLocation() = File(getProperty("videos.path", "/opt/media-compressor/results"))
     fun getVideoFormat() = getProperty("video.format", "mp4")
+    fun getVideoExtension() = getProperty("video.extension", getVideoFormat())
     fun getVideoCodec() = getProperty("video.codec", "libx265")
     fun getVideoFramerate() = getProperty("video.framerate", "24").toDouble()
     fun getVideoCRF() = getProperty("video.crf", "28").toDouble()

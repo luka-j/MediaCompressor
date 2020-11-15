@@ -55,7 +55,7 @@ class VideoDao(
     fun setVideoProcessing(id: UUID, node: String) {
         val video = findOrThrow(id)
         video.status = VideoStatus.PROCESSING
-        video.node = NODE_LOCAL
+        video.node = node
         repository.save(video)
     }
 
@@ -95,6 +95,7 @@ class VideoDao(
     fun getVideoByOriginId(id: UUID) : Optional<Video> = repository.findByOriginId(id)
 
     fun setVideoDownloaded(id: UUID) = setVideoStatus(id, VideoStatus.DOWNLOADED)
+    fun setVideoDownloaded(video: Video) = setVideoStatus(video, VideoStatus.DOWNLOADED)
 
     fun getOldDownloadedVideos() : List<Video> =
             repository.findAllByStatusEqualsAndUpdatedAtBefore(VideoStatus.DOWNLOADED,
@@ -113,14 +114,8 @@ class VideoDao(
                     LocalDateTime.now().minusMinutes(properties.getStaleVideosCleanupTimeThreshold()))
 
     fun setVideoDeleted(id: UUID) = setVideoStatus(id, VideoStatus.DELETED)
-    fun setVideoDeleted(video: Video) {
-        video.status = VideoStatus.DELETED
-        repository.save(video)
-    }
-    fun setVideoDeletedWithoutDownloading(video: Video) {
-        video.status = VideoStatus.DELETED_WITHOUT_DOWNLOADING
-        repository.save(video)
-    }
+    fun setVideoDeleted(video: Video) = setVideoStatus(video, VideoStatus.DELETED)
+    fun setVideoDeletedWithoutDownloading(video: Video) = setVideoStatus(video, VideoStatus.DELETED_WITHOUT_DOWNLOADING)
 
     fun setVideoError(id: UUID) = setVideoStatus(id, VideoStatus.ERROR)
     fun setVideoRejected(id: UUID) = setVideoStatus(id, VideoStatus.REJECTED)
@@ -129,8 +124,8 @@ class VideoDao(
 
     fun getVideosProcessingOnWorkers() = repository.findAllByStatusEqualsAndNodeNot(VideoStatus.PROCESSING, NODE_LOCAL)
 
-    private fun setVideoStatus(id: UUID, status: VideoStatus) : Video {
-        val video = findOrThrow(id)
+    private fun setVideoStatus(id: UUID, status: VideoStatus) : Video = setVideoStatus(findOrThrow(id), status)
+    private fun setVideoStatus(video: Video, status: VideoStatus) : Video {
         video.status = status
         return repository.save(video)
     }

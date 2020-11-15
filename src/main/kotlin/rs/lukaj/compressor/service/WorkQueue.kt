@@ -140,7 +140,7 @@ class WorkQueue(
                 nextJob(onJobFailed)
             }
         } else {
-            logger.info { "Added job ${job.videoId} to local queue" }
+            logger.info { "Added job ${job.videoId} work queue. Position: ${queue.size}." }
         }
         lock.unlock()
     }
@@ -150,6 +150,7 @@ class WorkQueue(
             logger.error { "Attempted to send job to worker, but this instance doesn't have master key set! Add master key to config." }
             throw RemoteExecutionInvocationException("Cannot execute job remotely without master key!")
         }
+        logger.info { "Executing job ${job.videoId} on $worker..." }
         workerService.sendWorkToWorker(worker, job.videoId)
         queue.pop() //pop job only after we're sure execution has started
         lock.unlock()
