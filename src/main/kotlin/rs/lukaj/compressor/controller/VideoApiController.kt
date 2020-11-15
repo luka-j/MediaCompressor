@@ -43,10 +43,12 @@ class VideoApiController(
     fun downloadVideo(@PathVariable("videoId") videoId: UUID, response: HttpServletResponse) {
         logger.info { "Received request to download file $videoId" }
         val video = service.getVideo(videoId).orElseThrow {EntityNotFound("Video with id $videoId doesn't exist!")}
+        val file = files.getResultVideo(video.id!!)
         //this is the only way I found to send raw response
         response.setHeader("Content-Disposition", "attachment; " +
                 "filename=\"${video.name.replaceFileExtension(properties.getVideoExtension())}\"")
-        files.getResultVideo(video.id!!).inputStream().copyTo(response.outputStream, 131072)
+        response.setHeader("Content-Length", file.length().toString())
+        file.inputStream().copyTo(response.outputStream, 131072)
         response.status = 200
     }
 
