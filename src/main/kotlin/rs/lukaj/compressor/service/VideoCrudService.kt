@@ -47,7 +47,7 @@ class VideoCrudService(
 
         queue.addToQueue(Job(videoId, JobOrigin.REMOTE) {
             try {
-                workerService.sendResultToMaster(originId, returnUrl)
+                workerService.sendResultToMaster(videoId, originId, returnUrl)
                 files.deleteQueueVideo(videoId, "after submitting to master")
                 files.deleteResultVideo(videoId, "after submitting to master")
                 dao.setVideoDeleted(videoId)
@@ -118,6 +118,10 @@ class VideoCrudService(
     fun failJob(videoId: UUID) {
         logger.info { "Failing video $videoId and notifying user." }
         val video = dao.setVideoError(videoId)
+        if(video.email.isBlank()) {
+            logger.warn { "User cannot be notified of failure $videoId - mail is blank (this was probably a remote job)" }
+            return
+        }
         mailService.sendMail("An error occurred while processing your video.", "An error occurred while " +
                 "processing your video ${video.name}. This is the id: ${video.id}, so drop me a message. Sorry :/",
                 false, Email(video.email))

@@ -35,12 +35,12 @@ class WorkerGateway(
     private val logger = KotlinLogging.logger {}
     private val client = WebClient.create()
 
-    fun sendResultToMaster(originId: UUID, returnUrl: String) {
+    fun sendResultToMaster(localId: UUID, originId: UUID, returnUrl: String) {
         val apacheClient = buildApacheClient(properties.getSubmitWorkToMasterRetryAttempts(),
                 properties.getSubmitWorkToMasterTimeout())
         val request = HttpPost(returnUrl)
         request.addHeader(VIDEO_ID_HEADER, originId.toString())
-        request.entity = FileEntity(files.getResultVideo(originId))
+        request.entity = FileEntity(files.getResultVideo(localId))
         apacheClient.execute(request) { response ->
             if (response.statusLine.statusCode != 200) {
                 logger.error {

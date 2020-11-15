@@ -153,7 +153,7 @@ class WorkQueue(
         workerService.sendWorkToWorker(worker, job.videoId)
         queue.pop() //pop job only after we're sure execution has started
         lock.unlock()
-        dao.setVideoProcessing(job.videoId, NODE_LOCAL)
+        dao.setVideoProcessing(job.videoId, worker)
     }
 
     fun ensureQueueCanAcceptNewVideo() {
