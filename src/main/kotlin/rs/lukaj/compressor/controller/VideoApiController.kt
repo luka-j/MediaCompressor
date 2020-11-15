@@ -9,7 +9,6 @@ import org.springframework.stereotype.Controller
 import org.springframework.web.bind.annotation.*
 import rs.lukaj.compressor.configuration.EnvironmentProperties
 import rs.lukaj.compressor.model.Video
-import rs.lukaj.compressor.service.FileService
 import rs.lukaj.compressor.service.VideoService
 import rs.lukaj.compressor.util.EntityNotFound
 import rs.lukaj.compressor.util.replaceFileExtension
@@ -24,8 +23,7 @@ const val FILE_SIZE_HEADER = "File-Size"
 @RequestMapping("/video")
 class VideoApiController(
         @Autowired val service: VideoService,
-        @Autowired val properties: EnvironmentProperties,
-        @Autowired val files : FileService
+        @Autowired val properties: EnvironmentProperties
 ) {
 
     private val logger = KotlinLogging.logger {}
@@ -44,7 +42,7 @@ class VideoApiController(
     fun downloadVideo(@PathVariable("videoId") videoId: UUID, response: HttpServletResponse) {
         logger.info { "Received request to download file $videoId" }
         val video = service.getVideo(videoId).orElseThrow {EntityNotFound("Video with id $videoId doesn't exist!")}
-        val file = files.getResultVideo(video.id!!)
+        val file = service.downloadVideo(video)
         //this is the only way I found to send raw response
         response.setHeader("Content-Disposition", "attachment; " +
                 "filename=\"${video.name.replaceFileExtension(properties.getVideoExtension())}\"")
