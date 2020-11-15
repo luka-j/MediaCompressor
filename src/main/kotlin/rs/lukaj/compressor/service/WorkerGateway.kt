@@ -2,7 +2,6 @@ package rs.lukaj.compressor.service
 
 import mu.KotlinLogging
 import org.apache.http.HttpException
-import org.apache.http.HttpHost
 import org.apache.http.client.config.RequestConfig
 import org.apache.http.client.methods.HttpPost
 import org.apache.http.entity.FileEntity
@@ -23,7 +22,6 @@ import rs.lukaj.compressor.controller.VIDEO_ID_HEADER
 import rs.lukaj.compressor.dao.VideoDao
 import rs.lukaj.compressor.dto.QueueSizeResponse
 import rs.lukaj.compressor.util.addTrailingSlash
-import java.net.URL
 import java.time.Duration
 import java.util.*
 
@@ -43,8 +41,7 @@ class WorkerGateway(
         val request = HttpPost(returnUrl)
         request.addHeader(VIDEO_ID_HEADER, originId.toString())
         request.entity = FileEntity(files.getResultVideo(originId))
-        val hostUrl = URL(returnUrl)
-        apacheClient.execute(HttpHost.create(hostUrl.protocol + "://" + hostUrl.host + ":" + hostUrl.port), request) { response ->
+        apacheClient.execute(request) { response ->
             if (response.statusLine.statusCode != 200) {
                 logger.error {
                     "Error occurred while submitting work to master! Got code ${response.statusLine.statusCode} " +
@@ -63,10 +60,10 @@ class WorkerGateway(
         request.addHeader(MASTER_KEY_HEADER, properties.getMyMasterKey())
         request.addHeader(FILE_NAME_HEADER, videoDao.getVideo(videoId).orElseThrow().name)
         request.addHeader(VIDEO_ID_HEADER, videoId.toString())
-        request.addHeader(RETURN_URL_HEADER, properties.getHostUrl().addTrailingSlash() + "worker/accept")
+        request.addHeader(RETURN_URL_HEADER, properties.getHostUrl()!!.addTrailingSlash() + "worker/accept")
         request.entity = FileEntity(files.getQueueVideo(videoId))
-        apacheClient.execute(HttpHost.create(host), request) { response ->
-            if (response.statusLine.statusCode != 200) {
+        apacheClient.execute(request) { response ->
+            if (response.statusLine.statusCode != 202) {
                 logger.error {
                     "Error occurred while sending work to worker! Got code ${response.statusLine.statusCode} " +
                             "and body: " + String(response.entity.content.readNBytes(1024))

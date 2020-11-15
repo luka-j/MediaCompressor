@@ -68,6 +68,7 @@ class WorkQueue(
             for(i in 1..queueSize) {
                 val top = queue.pop()
                 addToQueue(top, onJobFailed)
+                lock.lock()
             }
         } finally {
             lock.unlock()
@@ -123,6 +124,7 @@ class WorkQueue(
         if(!bypassSizeCheck) ensureQueueCanAcceptNewVideo()
         if (jobsExecuting < properties.getMaxConcurrentLocalJobs()) {
             jobsExecuting++
+            logger.info { "Executing job ${job.videoId} locally..." }
             val nextJob = queue.pop()
             dao.setVideoInQueue(nextJob.videoId)
             mainExecutor.execute {
@@ -137,6 +139,8 @@ class WorkQueue(
                 jobsExecuting--
                 nextJob(onJobFailed)
             }
+        } else {
+            logger.info { "Added job ${job.videoId} to local queue" }
         }
         lock.unlock()
     }
