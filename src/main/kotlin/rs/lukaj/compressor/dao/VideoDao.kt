@@ -16,8 +16,9 @@ import kotlin.collections.HashMap
 val IN_QUEUE_STATES = listOf(VideoStatus.UPLOADING, VideoStatus.UPLOADED, VideoStatus.IN_QUEUE, VideoStatus.PROCESSING)
 //states which should quickly be changed; not something that should last long
 private val TRANSITIVE_STATES = listOf(VideoStatus.UPLOADED, VideoStatus.PROCESSED)
-//not including ERROR here  vvv  on purpose
-private val FINAL_STATES = listOf(VideoStatus.REJECTED, VideoStatus.DELETED, VideoStatus.DELETED_WITHOUT_DOWNLOADING, VideoStatus.ERROR)
+private val FINAL_STATES = listOf(VideoStatus.REJECTED, VideoStatus.DELETED, VideoStatus.DELETED_WITHOUT_DOWNLOADING)
+private val NONACTIVE_STATES = listOf(VideoStatus.REJECTED, VideoStatus.DELETED, VideoStatus.DELETED_WITHOUT_DOWNLOADING,
+        VideoStatus.ERROR, VideoStatus.READY, VideoStatus.DOWNLOADED)
 const val NODE_LOCAL = "localhost"
 
 @Service
@@ -111,7 +112,7 @@ class VideoDao(
             repository.findAllByStatusInAndUpdatedAtBefore(TRANSITIVE_STATES,
                     LocalDateTime.now().minusMinutes(properties.getTransitiveStatusesCleanupTimeThreshold()))
     fun getStaleVideos() : List<Video> =
-            repository.findAllByStatusNotInAndUpdatedAtBefore(FINAL_STATES,
+            repository.findAllByStatusNotInAndUpdatedAtBefore(NONACTIVE_STATES,
                     LocalDateTime.now().minusMinutes(properties.getStaleVideosCleanupTimeThreshold()))
 
     fun setVideoDeleted(id: UUID) = setVideoStatus(id, VideoStatus.DELETED)
