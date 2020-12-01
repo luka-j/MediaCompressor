@@ -46,6 +46,12 @@ class FileService(
         delete(file, videoId, reason, errorLevel)
     }
 
+    fun getRecoveryVideos() : Array<File> {
+        val recoveryDir = properties.getRecoveryQueueLocation()
+        if(!recoveryDir.isDirectory) return arrayOf()
+        return recoveryDir.listFiles()
+    }
+
     private fun delete(file: File, videoId: UUID, reason: String, errorLevel: String) {
         if(!file.delete())
             when (errorLevel) {

@@ -13,6 +13,7 @@ private const val DEFAULT_CONFIG_FILE_LOCATION = "/opt/media-compressor/config.c
 class EnvironmentProperties {
 
     fun getVideoQueueLocation() = File(getProperty("queue.videos.path", "/opt/media-compressor/queue"))
+    fun getRecoveryQueueLocation() = File(getProperty("recovery.videos.path", "/opt/media-compressor/recovery"))
     fun getMaxQueueSize() = getProperty("queue.size", "5").toInt()
     fun getFreeSpaceThresholdMb() = getProperty("space.threshold", "1500").toInt()
     fun getQueueMinimumSpaceRemaining() = getProperty("space.threshold.panic", "300").toInt()
