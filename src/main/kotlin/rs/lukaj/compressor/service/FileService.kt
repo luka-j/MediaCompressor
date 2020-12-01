@@ -17,6 +17,7 @@ class FileService(
     fun saveVideoToQueue(videoId: UUID, stream: InputStream) : Long {
         val destFile = getQueueVideo(videoId)
         stream.copyTo(destFile.outputStream(), 131072)
+        stream.close()
         return destFile.length()
     }
 
@@ -32,6 +33,7 @@ class FileService(
     fun saveVideoToResults(videoId: UUID, stream: InputStream) : Long {
         val destFile = getResultVideo(videoId)
         stream.copyTo(destFile.outputStream(), 131072)
+        stream.close()
         return destFile.length()
     }
 
