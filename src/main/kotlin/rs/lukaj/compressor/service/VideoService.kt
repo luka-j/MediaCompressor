@@ -159,7 +159,7 @@ class VideoService(
     }
 
     private fun isThereEnoughFreeSpaceInQueue(size: Long) : Boolean {
-        return utils.getQueueFreeSpaceMb()-size/(1024*1024) > properties.getQueueMinimumSpaceRemaining()
+        return utils.getQueueFreeSpaceMb()-size/(1024*1024)-reservedSpace > properties.getQueueMinimumSpaceRemaining()
     }
     private fun ensureEnoughFreeSpaceInQueue(size: Long) {
         if(!isThereEnoughFreeSpaceInQueue(size)) throw NotEnoughSpace()
@@ -168,7 +168,10 @@ class VideoService(
     private fun prepareVideoForQueue(name: String, size: Long, email: String, origin: String, file: InputStream,
                                      originId: UUID? = null) : Video {
         val video = dao.createVideo(name, size, email, origin, originId)
-        dao.setVideoUploaded(video.id!!, files.saveVideoToQueue(video.id!!, file))
+        reserveSpace(size)
+        val realSize = files.saveVideoToQueue(video.id!!, file)
+        unreserveSpace(size)
+        dao.setVideoUploaded(video.id!!, realSize)
         return video
     }
 
@@ -191,4 +194,17 @@ class VideoService(
         dao.setVideosReady(recipient)
     }
 
+
+    //this part is ugly and race condition-prone
+    private var reservedSpace = 0L
+    private fun reserveSpace(space: Long) {
+        reservedSpace += space
+    }
+    private fun unreserveSpace(space: Long) {
+        reservedSpace -= space
+        if(reservedSpace < 0) {
+            logger.warn { "Reserved space appears to be < 0: $reservedSpace. Something is wrong!" }
+            reservedSpace = 0;
+        }
+    }
 }
