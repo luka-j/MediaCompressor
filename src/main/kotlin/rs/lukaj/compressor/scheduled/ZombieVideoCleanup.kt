@@ -32,6 +32,7 @@ class ZombieVideoCleanup(
             logger.info { "Removing zombie (ERROR) ${video.id} (${video.name})" }
             files.deleteQueueVideo(video.id!!, "marked as ERROR in database", "DEBUG")
             files.deleteResultVideo(video.id!!, "marked as ERROR in database", "DEBUG")
+            dao.setVideoDeletedWithoutDownloading(video)
         }
     }
 
