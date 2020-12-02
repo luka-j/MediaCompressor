@@ -37,13 +37,13 @@ class EnvironmentProperties {
     fun getSecondaryExecutorType() = getProperty("executor2.strategy", "cached")
     fun getMaxConcurrentLocalJobs() = getProperty("workqueue.concurrent", "1").toInt()
 
-    fun getClaimedCleanupFreeSpaceThreshold() = getProperty("cleanup.claimed.threshold", "2000").toInt()
-    fun getUnclaimedCleanupFreeSpaceThreshold() = getProperty("cleanup.unclaimed.threshold", "4000").toInt()
+    fun getClaimedCleanupFreeSpaceThreshold() = getProperty("cleanup.claimed.threshold", "4000").toInt()
+    fun getUnclaimedCleanupFreeSpaceThreshold() = getProperty("cleanup.unclaimed.threshold", "2000").toInt()
     fun getClaimedCleanupTimeThreshold() = getProperty("cleanup.claimed.time", "15").toLong()
     fun getUnclaimedCleanupTimeThreshold() = getProperty("cleanup.unclaimed.time", "90").toLong()
     fun getZombieErrorCleanupFreeSpaceThreshold() = getProperty("cleanup.zombie.error.space", "6000").toInt()
     fun getZombieErrorCleanupTimeThreshold() = getProperty("cleanup.zombie.error.time", "45").toLong()
-    fun getTransitiveStatusesCleanupTimeThreshold() = getProperty("cleanup.zombie.transitive.time", "15").toLong()
+    fun getTransitiveStatusesCleanupTimeThreshold() = getProperty("cleanup.zombie.transitive.time", "20").toLong()
     fun getStaleVideosCleanupTimeThreshold() = getProperty("cleanup.zombie.stale.time", "720").toLong()
     fun getInQueueVideosCleanupTimeThreshold() = getProperty("cleanup.zombie.inqueue.time", "1440").toLong()
 
