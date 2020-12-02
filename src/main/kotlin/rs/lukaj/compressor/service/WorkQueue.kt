@@ -126,11 +126,11 @@ class WorkQueue(
 
     private fun executeLocally(job: Job, bypassSizeCheck: Boolean, onJobFailed: (UUID)->Unit) {
         if(!bypassSizeCheck) ensureQueueCanAcceptNewVideo()
+        dao.setVideoInQueue(job.videoId)
         if (jobsExecuting < properties.getMaxConcurrentLocalJobs()) {
             jobsExecuting++
             logger.info { "Executing job ${job.videoId} locally..." }
             val nextJob = queue.pop()
-            dao.setVideoInQueue(nextJob.videoId)
             mainExecutor.execute {
                 try {
                     dao.setVideoProcessing(nextJob.videoId, NODE_LOCAL)
