@@ -9,7 +9,7 @@ plugins {
 }
 
 group = "rs.lukaj"
-version = "0.4-SNAPSHOT"
+version = "0.4.1-SNAPSHOT"
 java.sourceCompatibility = JavaVersion.VERSION_11
 
 configurations {
