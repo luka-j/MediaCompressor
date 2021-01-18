@@ -159,10 +159,10 @@ class VideoService(
     }
 
     private fun isThereEnoughFreeSpaceInQueue(size: Long) : Boolean {
-        val res = utils.getQueueFreeSpaceMb()-size/(1024*1024)-reservedSpace > properties.getQueueMinimumSpaceRemaining()
+        val res = utils.getQueueFreeSpaceMb()-size/(1024*1024)-reservedSpace/(1024*1024) > properties.getQueueMinimumSpaceRemaining()
         if(!res) {
             logger.warn { "Not enough space: total free space ${utils.getQueueFreeSpaceMb()}, this video size:" +
-                    "${size/(1024*1024)}, reserved: $reservedSpace, and threshold is ${properties.getQueueMinimumSpaceRemaining()}" }
+                    "${size/(1024*1024)}, reserved: ${reservedSpace/(1024*1024)}, and threshold is ${properties.getQueueMinimumSpaceRemaining()}" }
         }
         return res;
     }
